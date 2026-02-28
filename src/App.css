@@ -296,6 +296,60 @@ button:disabled {
   color: #5d6d90;
 }
 
+.members-toolbar {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 6px 10px;
+  border: 1px solid #c1cee7;
+  border-radius: 999px;
+  background: #f6f9ff;
+  color: #304169;
+  font-size: 0.85rem;
+}
+
+.chip-active {
+  border-color: #2f548e;
+  background: #2f548e;
+  color: #fff;
+}
+
+.search-input {
+  border: 1px solid #c5d1e8;
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.row-subtext {
+  color: #5d6d90;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.actions-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.actions-grid button {
+  padding: 5px 9px;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 1280px) {
   .stat-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

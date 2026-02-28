@@ -3,6 +3,7 @@ import './App.css'
 import { AdminLayout } from './components/AdminLayout'
 import { AdminProvider } from './context/AdminContext'
 import { DashboardPage } from './pages/DashboardPage'
+import { MembersPage } from './pages/MembersPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { SpaceSettingsPage } from './pages/SpaceSettingsPage'
 
@@ -15,15 +16,7 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/space-settings" element={<SpaceSettingsPage />} />
-            <Route
-              path="/members"
-              element={
-                <PlaceholderPage
-                  title="Members"
-                  description="Membership moderation actions will be implemented in this workspace in the next step."
-                />
-              }
-            />
+            <Route path="/members" element={<MembersPage />} />
             <Route
               path="/posts"
               element={
