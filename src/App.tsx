@@ -4,8 +4,10 @@ import { AdminLayout } from './components/AdminLayout'
 import { AdminProvider } from './context/AdminContext'
 import { DashboardPage } from './pages/DashboardPage'
 import { MembersPage } from './pages/MembersPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
+import { PostsPage } from './pages/PostsPage'
+import { ReportsPage } from './pages/ReportsPage'
 import { SpaceSettingsPage } from './pages/SpaceSettingsPage'
+import { WhispersPage } from './pages/WhispersPage'
 
 function App() {
   return (
@@ -17,33 +19,9 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/space-settings" element={<SpaceSettingsPage />} />
             <Route path="/members" element={<MembersPage />} />
-            <Route
-              path="/posts"
-              element={
-                <PlaceholderPage
-                  title="Posts"
-                  description="Owner article list and publish controls will be implemented in the next step."
-                />
-              }
-            />
-            <Route
-              path="/whispers"
-              element={
-                <PlaceholderPage
-                  title="Whispers"
-                  description="Whisper moderation and visibility controls will be implemented in the next step."
-                />
-              }
-            />
-            <Route
-              path="/reports"
-              element={
-                <PlaceholderPage
-                  title="Reports"
-                  description="Report triage and resolution actions will be implemented in the next step."
-                />
-              }
-            />
+            <Route path="/posts" element={<PostsPage />} />
+            <Route path="/whispers" element={<WhispersPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>

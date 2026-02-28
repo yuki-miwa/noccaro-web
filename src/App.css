@@ -350,6 +350,95 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.post-form {
+  display: grid;
+  gap: 10px;
+}
+
+.post-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.post-form span {
+  color: #4d5f89;
+  font-size: 0.9rem;
+}
+
+.post-form input,
+.post-form textarea {
+  border: 1px solid #c5d1e8;
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stack-list {
+  display: grid;
+  gap: 10px;
+}
+
+.entry-card {
+  border: 1px solid #dae3f4;
+  border-radius: 10px;
+  background: #fcfdff;
+  padding: 12px;
+}
+
+.entry-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.entry-card p {
+  margin: 8px 0 10px;
+  color: #273862;
+}
+
+.entry-card footer {
+  display: grid;
+  gap: 2px;
+}
+
+.entry-card small {
+  color: #5d6d90;
+  font-size: 0.78rem;
+}
+
+.status-pill {
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.status-published {
+  background: #e8f8ef;
+  border-color: #9ad3b1;
+  color: #1a6339;
+}
+
+.status-draft {
+  background: #eef2f8;
+  border-color: #c6d0df;
+  color: #44536f;
+}
+
+.status-archived,
+.status-deleted {
+  background: #f4ecec;
+  border-color: #ddc1c1;
+  color: #6f3e3e;
+}
+
 @media (max-width: 1280px) {
   .stat-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
