@@ -79,7 +79,9 @@ export function SystemUsersPage() {
                   </td>
                   <td>
                     <div className="actions-grid">
-                      {item.user.status !== 'locked' ? (
+                      {item.user.status === 'deleted' ? (
+                        <span className="row-subtext">削除済み</span>
+                      ) : item.user.status !== 'locked' ? (
                         <button type="button" onClick={() => void updateUser(item.user.id, { status: 'locked', note: 'manual safety lock' })} disabled={loading}>
                           ロック
                         </button>

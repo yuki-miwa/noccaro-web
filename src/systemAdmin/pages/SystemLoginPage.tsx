@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useSystemAdminContext } from '../context/SystemAdminContext'
 
 export function SystemLoginPage() {
-  const { login, loading, error } = useSystemAdminContext()
-  const [email, setEmail] = useState('sysadmin@noccaro.local')
-  const [password, setPassword] = useState('password123')
+  const { login, loading, error, serviceMode } = useSystemAdminContext()
+  const [email, setEmail] = useState(serviceMode === 'mock' ? 'sysadmin@noccaro.local' : '')
+  const [password, setPassword] = useState(serviceMode === 'mock' ? 'password123' : '')
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -20,10 +20,17 @@ export function SystemLoginPage() {
           <p>
             スペース作成、初期主オーナー設定、ユーザー保護、全スペース横断の監視を担当する内部向け画面です。
           </p>
-          <div className="auth-note">
-            <strong>モックログイン</strong>
-            <span>`sysadmin@noccaro.local` / `password123`</span>
-          </div>
+          {serviceMode === 'mock' ? (
+            <div className="auth-note">
+              <strong>モックログイン</strong>
+              <span>`sysadmin@noccaro.local` / `password123`</span>
+            </div>
+          ) : (
+            <div className="auth-note">
+              <strong>本番 / API 接続</strong>
+              <span>発行済みのシステム管理者アカウントでログインしてください。</span>
+            </div>
+          )}
         </div>
 
         <form className="auth-form" onSubmit={(event) => void submit(event)}>

@@ -26,6 +26,7 @@ import type {
   ResolveSystemReportInput,
   SystemAdminService,
 } from '../services/systemAdminService'
+import { ApiClientError } from '../../services/httpClient'
 import { SystemAdminApiError } from '../services/mockSystemAdminService'
 
 interface SystemAdminContextValue {
@@ -55,6 +56,9 @@ const SystemAdminContext = createContext<SystemAdminContextValue | undefined>(un
 
 function normalizeError(error: unknown): string {
   if (error instanceof SystemAdminApiError) {
+    return error.message
+  }
+  if (error instanceof ApiClientError) {
     return error.message
   }
   if (error instanceof Error) {

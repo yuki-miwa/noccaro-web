@@ -204,44 +204,50 @@ export function SystemSpacesPage() {
                     <td>{formatIso(item.space.createdAt)}</td>
                     <td>
                       <div className="actions-grid">
-                        <select
-                          className="compact-select"
-                          value={selectedOwner}
-                          onChange={(event) =>
-                            setOwnerSelections((current) => ({
-                              ...current,
-                              [item.space.id]: event.target.value,
-                            }))
-                          }
-                        >
-                          <option value="">主オーナーを選択</option>
-                          {eligibleUsers.map((user) => (
-                            <option key={user.user.id} value={user.user.id}>
-                              {user.user.displayName} / {userStatusLabel(user.user.status)}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => void assignPrimaryOwner(item.space.id, { userId: selectedOwner, note: 'system admin reassignment' })}
-                          disabled={loading || !selectedOwner}
-                        >
-                          主オーナー設定
-                        </button>
-                        {item.space.status === 'active' ? (
-                          <button type="button" onClick={() => void updateSpace(item.space.id, { status: 'suspended' })} disabled={loading}>
-                            停止
-                          </button>
+                        {item.space.status === 'deleted' ? (
+                          <span className="row-subtext">削除済み</span>
                         ) : (
-                          <button type="button" onClick={() => void updateSpace(item.space.id, { status: 'active' })} disabled={loading}>
-                            再開
-                          </button>
+                          <>
+                            <select
+                              className="compact-select"
+                              value={selectedOwner}
+                              onChange={(event) =>
+                                setOwnerSelections((current) => ({
+                                  ...current,
+                                  [item.space.id]: event.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">主オーナーを選択</option>
+                              {eligibleUsers.map((user) => (
+                                <option key={user.user.id} value={user.user.id}>
+                                  {user.user.displayName} / {userStatusLabel(user.user.status)}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => void assignPrimaryOwner(item.space.id, { userId: selectedOwner, note: 'system admin reassignment' })}
+                              disabled={loading || !selectedOwner}
+                            >
+                              主オーナー設定
+                            </button>
+                            {item.space.status === 'active' ? (
+                              <button type="button" onClick={() => void updateSpace(item.space.id, { status: 'suspended' })} disabled={loading}>
+                                停止
+                              </button>
+                            ) : (
+                              <button type="button" onClick={() => void updateSpace(item.space.id, { status: 'active' })} disabled={loading}>
+                                再開
+                              </button>
+                            )}
+                            {item.space.status !== 'archived' ? (
+                              <button type="button" onClick={() => void updateSpace(item.space.id, { status: 'archived' })} disabled={loading}>
+                                アーカイブ
+                              </button>
+                            ) : null}
+                          </>
                         )}
-                        {item.space.status !== 'archived' ? (
-                          <button type="button" onClick={() => void updateSpace(item.space.id, { status: 'archived' })} disabled={loading}>
-                            アーカイブ
-                          </button>
-                        ) : null}
                       </div>
                     </td>
                   </tr>
