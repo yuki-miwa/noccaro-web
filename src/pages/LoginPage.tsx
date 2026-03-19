@@ -15,15 +15,15 @@ export function LoginPage() {
     <main className="auth-shell">
       <section className="auth-card">
         <div className="auth-copy">
-          <p className="eyebrow">Noccaro Admin</p>
-          <h1>Owner console aligned to the backend contract</h1>
+          <p className="eyebrow">Noccaro 管理画面</p>
+          <h1>コミュニティ運営コンソール</h1>
           <p>
-            This admin app now boots through the approved `Bearer token` flow and loads space-scoped admin data from a
-            contract-first service layer.
+            承認済みの `Bearer token` フローで起動し、スペース単位の管理データを API 契約に沿って読み込む
+            管理画面です。
           </p>
           {serviceMode === 'mock' ? (
             <div className="auth-note">
-              <strong>Mock login</strong>
+              <strong>モックログイン</strong>
               <span>`primary-owner@noccaro.local` / `password123`</span>
             </div>
           ) : null}
@@ -31,7 +31,7 @@ export function LoginPage() {
 
         <form className="auth-form" onSubmit={(event) => void submit(event)}>
           <label>
-            <span>Email</span>
+            <span>メールアドレス</span>
             <input
               type="email"
               value={email}
@@ -42,7 +42,7 @@ export function LoginPage() {
           </label>
 
           <label>
-            <span>Password</span>
+            <span>パスワード</span>
             <input
               type="password"
               value={password}
@@ -55,7 +55,7 @@ export function LoginPage() {
           {error ? <p className="error-banner">{error}</p> : null}
 
           <button type="submit" disabled={loading || !email.trim() || !password}>
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'ログイン中...' : 'ログイン'}
           </button>
         </form>
       </section>

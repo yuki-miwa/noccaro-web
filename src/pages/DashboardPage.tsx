@@ -1,6 +1,14 @@
 import { useAdminContext } from '../context/AdminContext'
 import { StatCard } from '../components/StatCard'
-import { formatIso, membershipStatusLabel, reportStatusLabel, roleLabel } from '../utils/format'
+import {
+  formatIso,
+  joinPolicyLabel,
+  membershipStatusLabel,
+  postStatusLabel,
+  reportReasonLabel,
+  reportStatusLabel,
+  roleLabel,
+} from '../utils/format'
 
 export function DashboardPage() {
   const { joinRequests, members, metrics, posts, reports, selectedSpace, selectedMembership, whispers } =
@@ -10,9 +18,9 @@ export function DashboardPage() {
     return (
       <section className="panel">
         <div className="panel-header">
-          <h2>Admin Space Required</h2>
+          <h2>管理対象スペースが必要です</h2>
         </div>
-        <p className="empty-text">Select a space where your membership role is `owner` or `primary_owner`.</p>
+        <p className="empty-text">ロールが `owner` または `primary_owner` のスペースを選択してください。</p>
       </section>
     )
   }
@@ -20,40 +28,44 @@ export function DashboardPage() {
   return (
     <div className="page-stack">
       <section className="panel stat-grid">
-        <StatCard title="Active Members" value={metrics.activeMemberCount} hint="GET /admin/spaces/{spaceId}/members" />
-        <StatCard title="Pending Requests" value={metrics.pendingMemberCount} hint="GET /admin/spaces/{spaceId}/join-requests" />
-        <StatCard title="Active Whispers" value={metrics.activeWhisperCount} hint="GET /spaces/{spaceId}/whispers" />
-        <StatCard title="Open Reports" value={metrics.openReportCount} hint="GET /admin/spaces/{spaceId}/reports" />
-        <StatCard title="Published Posts" value={metrics.publishedPostCount} hint="status=published" />
-        <StatCard title="Your Role" value={roleLabel(selectedMembership.role)} hint={membershipStatusLabel(selectedMembership.status)} />
+        <StatCard title="参加中メンバー" value={metrics.activeMemberCount} hint="GET /admin/spaces/{spaceId}/members" />
+        <StatCard title="承認待ち申請" value={metrics.pendingMemberCount} hint="GET /admin/spaces/{spaceId}/join-requests" />
+        <StatCard title="公開中のWhisper" value={metrics.activeWhisperCount} hint="GET /spaces/{spaceId}/whispers" />
+        <StatCard title="未対応の通報" value={metrics.openReportCount} hint="GET /admin/spaces/{spaceId}/reports" />
+        <StatCard title="公開中の運営投稿" value={metrics.publishedPostCount} hint="status=published" />
+        <StatCard
+          title="あなたの権限"
+          value={roleLabel(selectedMembership.role)}
+          hint={membershipStatusLabel(selectedMembership.status)}
+        />
       </section>
 
       <section className="panel">
         <div className="panel-header">
-          <h2>Selected Space</h2>
+          <h2>選択中のスペース</h2>
           <span>{selectedSpace.id}</span>
         </div>
         <div className="overview-grid">
           <dl>
-            <dt>Name</dt>
+            <dt>名称</dt>
             <dd>{selectedSpace.name}</dd>
-            <dt>Code</dt>
+            <dt>スペースコード</dt>
             <dd>{selectedSpace.code}</dd>
-            <dt>Join Policy</dt>
-            <dd>{selectedSpace.joinPolicy}</dd>
-            <dt>Description</dt>
+            <dt>参加方式</dt>
+            <dd>{joinPolicyLabel(selectedSpace.joinPolicy)}</dd>
+            <dt>説明</dt>
             <dd>{selectedSpace.description ?? '-'}</dd>
           </dl>
           <dl>
-            <dt>Owner Cap</dt>
+            <dt>オーナー上限</dt>
             <dd>{selectedSpace.maxOwnerCount}</dd>
             <dt>Whisper TTL</dt>
-            <dd>{selectedSpace.whisperTtlMinutes} min</dd>
-            <dt>Whisper Max Length</dt>
+            <dd>{selectedSpace.whisperTtlMinutes}分</dd>
+            <dt>Whisper 最大文字数</dt>
             <dd>{selectedSpace.whisperMaxLength}</dd>
-            <dt>Grid / Jitter</dt>
+            <dt>グリッド / ジッター</dt>
             <dd>
-              {selectedSpace.locationGridMeters}m / {selectedSpace.locationJitterEnabled ? 'enabled' : 'disabled'}
+              {selectedSpace.locationGridMeters}m / {selectedSpace.locationJitterEnabled ? '有効' : '無効'}
             </dd>
           </dl>
         </div>
@@ -62,18 +74,18 @@ export function DashboardPage() {
       <section className="panel two-column-grid">
         <div>
           <div className="panel-header">
-            <h2>Pending Join Requests</h2>
+            <h2>承認待ち参加申請</h2>
             <span>{joinRequests.length}</span>
           </div>
           {joinRequests.length === 0 ? (
-            <p className="empty-text">No pending memberships.</p>
+            <p className="empty-text">承認待ちの申請はありません。</p>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>User</th>
-                  <th>Membership</th>
-                  <th>Requested At</th>
+                  <th>ユーザー</th>
+                  <th>メンバーシップ</th>
+                  <th>申請日時</th>
                 </tr>
               </thead>
               <tbody>
@@ -91,18 +103,18 @@ export function DashboardPage() {
 
         <div>
           <div className="panel-header">
-            <h2>Latest Reports</h2>
+            <h2>最新の通報</h2>
             <span>{reports.length}</span>
           </div>
           {reports.length === 0 ? (
-            <p className="empty-text">No reports yet.</p>
+            <p className="empty-text">通報はまだありません。</p>
           ) : (
             <ul className="event-list">
               {reports.slice(0, 5).map((item) => (
                 <li key={item.report.id}>
                   <strong>{item.target.whisper?.body ?? item.report.targetType}</strong>
                   <span>
-                    {item.report.reasonType} / {reportStatusLabel(item.report.status)}
+                    {reportReasonLabel(item.report.reasonType)} / {reportStatusLabel(item.report.status)}
                   </span>
                   <small>{formatIso(item.report.createdAt)}</small>
                 </li>
@@ -115,18 +127,18 @@ export function DashboardPage() {
       <section className="panel two-column-grid">
         <div>
           <div className="panel-header">
-            <h2>Recent Posts</h2>
+            <h2>最近の運営投稿</h2>
             <span>{posts.length}</span>
           </div>
           {posts.length === 0 ? (
-            <p className="empty-text">No owner posts.</p>
+            <p className="empty-text">運営投稿はまだありません。</p>
           ) : (
             <ul className="event-list">
               {posts.slice(0, 5).map((post) => (
                 <li key={post.id}>
                   <strong>{post.title}</strong>
                   <span>
-                    {post.status} / {post.reactionCount} reactions
+                    {postStatusLabel(post.status)} / リアクション {post.reactionCount}件
                   </span>
                   <small>{formatIso(post.updatedAt)}</small>
                 </li>
@@ -137,17 +149,17 @@ export function DashboardPage() {
 
         <div>
           <div className="panel-header">
-            <h2>Active Whispers</h2>
+            <h2>現在のWhisper</h2>
             <span>{whispers.length}</span>
           </div>
           {whispers.length === 0 ? (
-            <p className="empty-text">No active whispers returned by the public whisper API.</p>
+            <p className="empty-text">公開中の Whisper はありません。</p>
           ) : (
             <ul className="event-list">
               {whispers.slice(0, 5).map((whisper) => (
                 <li key={whisper.id}>
                   <strong>{whisper.body}</strong>
-                  <span>{whisper.reportCount} reports</span>
+                  <span>通報 {whisper.reportCount}件</span>
                   <small>{formatIso(whisper.expiresAt)}</small>
                 </li>
               ))}
@@ -158,17 +170,17 @@ export function DashboardPage() {
 
       <section className="panel">
         <div className="panel-header">
-          <h2>Membership Snapshot</h2>
-          <span>{members.length} members</span>
+          <h2>メンバー一覧サマリー</h2>
+          <span>{members.length}人</span>
         </div>
         <table className="table">
           <thead>
             <tr>
-              <th>User</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Mute</th>
-              <th>Suspend</th>
+              <th>ユーザー</th>
+              <th>権限</th>
+              <th>状態</th>
+              <th>ミュート</th>
+              <th>利用停止</th>
             </tr>
           </thead>
           <tbody>

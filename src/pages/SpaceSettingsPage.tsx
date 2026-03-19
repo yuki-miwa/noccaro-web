@@ -37,7 +37,7 @@ export function SpaceSettingsPage() {
   const { selectedMembership, selectedSpace } = useAdminContext()
 
   if (!selectedSpace || !selectedMembership) {
-    return <p className="page-empty">Select an admin-capable space to edit settings.</p>
+    return <p className="page-empty">管理対象スペースを選択してください。</p>
   }
 
   return <SpaceSettingsForm key={selectedSpace.id} />
@@ -69,16 +69,16 @@ function SpaceSettingsForm() {
     <div className="page-stack">
       <section className="panel">
         <div className="panel-header">
-          <h2>Space Settings</h2>
+          <h2>スペース設定</h2>
           <span>PATCH /api/v1/admin/spaces/{selectedSpace!.id}</span>
         </div>
         <form className="settings-form" onSubmit={(event) => void submit(event)}>
           <label>
-            <span>Space Name</span>
+            <span>スペース名</span>
             <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
           </label>
           <label>
-            <span>Space Code</span>
+            <span>スペースコード</span>
             <input
               value={form.spaceCode}
               onChange={(event) => setForm({ ...form, spaceCode: event.target.value })}
@@ -86,7 +86,7 @@ function SpaceSettingsForm() {
             />
           </label>
           <label className="settings-form-full">
-            <span>Description</span>
+            <span>説明</span>
             <textarea
               rows={4}
               value={form.description}
@@ -94,7 +94,7 @@ function SpaceSettingsForm() {
             />
           </label>
           <label>
-            <span>Join Policy</span>
+            <span>参加方式</span>
             <select
               value={form.joinPolicy}
               onChange={(event) =>
@@ -104,12 +104,12 @@ function SpaceSettingsForm() {
                 })
               }
             >
-              <option value="approval_required">approval_required</option>
-              <option value="auto_approve">auto_approve</option>
+              <option value="approval_required">承認制</option>
+              <option value="auto_approve">自動承認</option>
             </select>
           </label>
           <label>
-            <span>Owner Cap</span>
+            <span>オーナー上限</span>
             <input
               type="number"
               min={1}
@@ -118,7 +118,7 @@ function SpaceSettingsForm() {
             />
           </label>
           <label>
-            <span>Whisper TTL (minutes)</span>
+            <span>Whisper TTL（分）</span>
             <input
               type="number"
               min={30}
@@ -127,7 +127,7 @@ function SpaceSettingsForm() {
             />
           </label>
           <label>
-            <span>Whisper Max Length</span>
+            <span>Whisper 最大文字数</span>
             <input
               type="number"
               min={1}
@@ -137,7 +137,7 @@ function SpaceSettingsForm() {
             />
           </label>
           <label>
-            <span>Location Grid (m)</span>
+            <span>位置グリッド（m）</span>
             <input
               type="number"
               min={80}
@@ -146,7 +146,7 @@ function SpaceSettingsForm() {
             />
           </label>
           <label>
-            <span>Auto-hide Report Threshold</span>
+            <span>自動非表示しきい値</span>
             <input
               type="number"
               min={1}
@@ -160,7 +160,7 @@ function SpaceSettingsForm() {
             />
           </label>
           <label>
-            <span>Rate Limit per Minute</span>
+            <span>1分あたり投稿上限</span>
             <input
               type="number"
               min={1}
@@ -169,7 +169,7 @@ function SpaceSettingsForm() {
             />
           </label>
           <label>
-            <span>Rate Limit per 10 Minutes</span>
+            <span>10分あたり投稿上限</span>
             <input
               type="number"
               min={1}
@@ -183,10 +183,10 @@ function SpaceSettingsForm() {
               checked={form.locationJitterEnabled}
               onChange={(event) => setForm({ ...form, locationJitterEnabled: event.target.checked })}
             />
-            <span>Enable location jitter</span>
+            <span>位置ジッターを有効にする</span>
           </label>
           <button type="submit" disabled={loading}>
-            Save Settings
+            設定を保存
           </button>
         </form>
       </section>

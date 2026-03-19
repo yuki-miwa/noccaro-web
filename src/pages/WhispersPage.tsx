@@ -5,32 +5,33 @@ export function WhispersPage() {
   const { loading, removeWhisper, selectedSpace, whispers } = useAdminContext()
 
   if (!selectedSpace) {
-    return <p className="page-empty">Select an admin-capable space to review whispers.</p>
+    return <p className="page-empty">管理対象スペースを選択してください。</p>
   }
 
   return (
     <div className="page-stack">
       <section className="panel">
         <div className="panel-header">
-          <h2>Active Whispers</h2>
+          <h2>公開中のWhisper</h2>
           <span>GET /api/v1/spaces/{selectedSpace.id}/whispers</span>
         </div>
         <p className="empty-text">
-          The current contract exposes active whispers through the public whisper list API. Hidden or removed whispers
-          are primarily reviewed via the Reports screen.
+          現在の API 契約では、公開中の Whisper は一般向け一覧 API から取得します。非表示済みや削除済みの
+          Whisper は主に通報対応画面から確認します。
         </p>
 
+        {whispers.length === 0 ? <p className="empty-text">公開中の Whisper はありません。</p> : null}
         <div className="table-scroll">
           <table className="table">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Body</th>
-                <th>Status</th>
-                <th>Display Coordinates</th>
-                <th>Reports</th>
-                <th>Expires At</th>
-                <th>Actions</th>
+                <th>本文</th>
+                <th>状態</th>
+                <th>表示座標</th>
+                <th>通報件数</th>
+                <th>掲載終了</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -43,17 +44,17 @@ export function WhispersPage() {
                     <div className="row-subtext">
                       {whisper.displayLat.toFixed(5)}, {whisper.displayLng.toFixed(5)}
                     </div>
-                    <div className="row-subtext">radius={whisper.displayRadiusM}m</div>
+                    <div className="row-subtext">表示半径 {whisper.displayRadiusM}m</div>
                   </td>
                   <td>{whisper.reportCount}</td>
                   <td>{formatIso(whisper.expiresAt)}</td>
                   <td>
                     <button
                       type="button"
-                      onClick={() => void removeWhisper(whisper.id, 'Removed from whispers moderation screen')}
+                      onClick={() => void removeWhisper(whisper.id, 'Whisper 管理画面から削除')}
                       disabled={loading}
                     >
-                      Remove
+                      削除
                     </button>
                   </td>
                 </tr>

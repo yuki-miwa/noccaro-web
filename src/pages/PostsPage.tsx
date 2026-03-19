@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAdminContext } from '../context/AdminContext'
-import { formatIso } from '../utils/format'
+import { formatIso, postStatusLabel } from '../utils/format'
 
 interface PostFormState {
   title: string
@@ -23,7 +23,7 @@ export function PostsPage() {
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
 
   if (!selectedSpace) {
-    return <p className="page-empty">Select an admin-capable space to manage owner posts.</p>
+    return <p className="page-empty">管理対象スペースを選択してください。</p>
   }
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -56,12 +56,14 @@ export function PostsPage() {
     <div className="page-stack">
       <section className="panel">
         <div className="panel-header">
-          <h2>{editingPostId ? 'Edit Owner Post' : 'Create Owner Post'}</h2>
-          <span>{editingPostId ? `PATCH /api/v1/admin/posts/${editingPostId}` : `POST /api/v1/admin/spaces/${selectedSpace.id}/posts`}</span>
+          <h2>{editingPostId ? '運営投稿を編集' : '運営投稿を作成'}</h2>
+          <span>
+            {editingPostId ? `PATCH /api/v1/admin/posts/${editingPostId}` : `POST /api/v1/admin/spaces/${selectedSpace.id}/posts`}
+          </span>
         </div>
         <form className="post-form" onSubmit={(event) => void submit(event)}>
           <label>
-            <span>Title</span>
+            <span>タイトル</span>
             <input
               type="text"
               maxLength={200}
@@ -71,7 +73,7 @@ export function PostsPage() {
             />
           </label>
           <label>
-            <span>Body</span>
+            <span>本文</span>
             <textarea
               rows={6}
               value={form.body}
@@ -80,7 +82,7 @@ export function PostsPage() {
             />
           </label>
           <label>
-            <span>Status</span>
+            <span>公開状態</span>
             <select
               value={form.status}
               onChange={(event) =>
@@ -90,8 +92,8 @@ export function PostsPage() {
                 })
               }
             >
-              <option value="draft">draft</option>
-              <option value="published">published</option>
+              <option value="draft">{postStatusLabel('draft')}</option>
+              <option value="published">{postStatusLabel('published')}</option>
             </select>
           </label>
           <label className="check-row">
@@ -100,11 +102,11 @@ export function PostsPage() {
               checked={form.notifyMembers}
               onChange={(event) => setForm({ ...form, notifyMembers: event.target.checked })}
             />
-            <span>notifyMembers</span>
+            <span>メンバーに通知する</span>
           </label>
           <div className="actions-grid">
             <button type="submit" disabled={loading || !form.title.trim() || !form.body.trim()}>
-              {editingPostId ? 'Save Changes' : 'Create Post'}
+              {editingPostId ? '変更を保存' : '投稿を作成'}
             </button>
             {editingPostId ? (
               <button
@@ -115,7 +117,7 @@ export function PostsPage() {
                 }}
                 disabled={loading}
               >
-                Cancel
+                キャンセル
               </button>
             ) : null}
           </div>
@@ -124,25 +126,25 @@ export function PostsPage() {
 
       <section className="panel">
         <div className="panel-header">
-          <h2>Owner Posts</h2>
-          <span>{posts.length} items</span>
+          <h2>運営投稿一覧</h2>
+          <span>{posts.length}件</span>
         </div>
         {posts.length === 0 ? (
-          <p className="empty-text">No owner posts yet.</p>
+          <p className="empty-text">運営投稿はまだありません。</p>
         ) : (
           <div className="stack-list">
             {posts.map((post) => (
               <article key={post.id} className="entry-card">
                 <header>
                   <strong>{post.title}</strong>
-                  <span className={`status-pill status-${post.status}`}>{post.status}</span>
+                  <span className={`status-pill status-${post.status}`}>{postStatusLabel(post.status)}</span>
                 </header>
                 <p>{post.body}</p>
                 <footer>
                   <small>
-                    created {formatIso(post.createdAt)} / updated {formatIso(post.updatedAt)} / reactions {post.reactionCount}
+                    作成 {formatIso(post.createdAt)} / 更新 {formatIso(post.updatedAt)} / リアクション {post.reactionCount}件
                   </small>
-                  <small>{post.notifyMembers ? 'notifyMembers=true' : 'notifyMembers=false'}</small>
+                  <small>{post.notifyMembers ? '通知あり' : '通知なし'}</small>
                 </footer>
                 <div className="actions-grid top-gap">
                   <button
@@ -158,21 +160,21 @@ export function PostsPage() {
                     }}
                     disabled={loading}
                   >
-                    Edit
+                    編集
                   </button>
                   {post.status !== 'published' ? (
                     <button type="button" onClick={() => void publishPost(post.id, true)} disabled={loading}>
-                      Publish
+                      公開
                     </button>
                   ) : null}
                   {post.status !== 'archived' && post.status !== 'deleted' ? (
                     <button type="button" onClick={() => void archivePost(post.id)} disabled={loading}>
-                      Archive
+                      アーカイブ
                     </button>
                   ) : null}
                   {post.status !== 'deleted' ? (
                     <button type="button" onClick={() => void deletePost(post.id)} disabled={loading}>
-                      Delete
+                      削除
                     </button>
                   ) : null}
                 </div>

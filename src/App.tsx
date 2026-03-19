@@ -23,7 +23,7 @@ function AppRoutes() {
   const { ready, authenticated } = useAdminContext()
 
   if (!ready) {
-    return <main className="page-empty">Bootstrapping admin session...</main>
+    return <main className="page-empty">管理画面を起動しています...</main>
   }
 
   return (

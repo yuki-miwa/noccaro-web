@@ -4,13 +4,13 @@ import { formatIso, membershipStatusLabel, roleLabel } from '../utils/format'
 import type { MembershipStatus } from '../types/api'
 
 const statusFilters: Array<{ label: string; value: 'all' | MembershipStatus }> = [
-  { label: 'All', value: 'all' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'Active', value: 'active' },
-  { label: 'Suspended', value: 'suspended' },
-  { label: 'Banned', value: 'banned' },
-  { label: 'Kicked', value: 'kicked' },
-  { label: 'Left', value: 'left' },
+  { label: 'すべて', value: 'all' },
+  { label: '承認待ち', value: 'pending' },
+  { label: '参加中', value: 'active' },
+  { label: '利用停止', value: 'suspended' },
+  { label: 'BAN', value: 'banned' },
+  { label: '強制退出', value: 'kicked' },
+  { label: '退会', value: 'left' },
 ]
 
 function hoursFromNowIso(hours: number): string {
@@ -47,25 +47,25 @@ export function MembersPage() {
   }, [keyword, members, statusFilter])
 
   if (!selectedSpace || !selectedMembership) {
-    return <p className="page-empty">Select an admin-capable space to manage members.</p>
+    return <p className="page-empty">管理対象スペースを選択してください。</p>
   }
 
   const runMute = async (membershipId: string) => {
-    const hours = Number(window.prompt('Mute duration in hours', '24') ?? '24')
+    const hours = Number(window.prompt('ミュート時間を入力してください（時間）', '24') ?? '24')
     const muteUntil = hoursFromNowIso(Number.isNaN(hours) || hours <= 0 ? 24 : hours)
     await patchMembership(membershipId, {
       muteUntil,
-      reason: 'Muted from admin members screen',
+      reason: 'メンバー管理画面からミュート',
     })
   }
 
   const runSuspend = async (membershipId: string) => {
-    const hours = Number(window.prompt('Suspend duration in hours', '72') ?? '72')
+    const hours = Number(window.prompt('利用停止時間を入力してください（時間）', '72') ?? '72')
     const suspendedUntil = hoursFromNowIso(Number.isNaN(hours) || hours <= 0 ? 72 : hours)
     await patchMembership(membershipId, {
       status: 'suspended',
       suspendedUntil,
-      reason: 'Suspended from admin members screen',
+      reason: 'メンバー管理画面から利用停止',
     })
   }
 
@@ -73,19 +73,19 @@ export function MembersPage() {
     <div className="page-stack">
       <section className="panel">
         <div className="panel-header">
-          <h2>Pending Join Requests</h2>
+          <h2>承認待ち参加申請</h2>
           <span>{joinRequests.length}</span>
         </div>
         {joinRequests.length === 0 ? (
-          <p className="empty-text">No pending requests.</p>
+          <p className="empty-text">承認待ち申請はありません。</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>User</th>
-                <th>Membership</th>
-                <th>Requested At</th>
-                <th>Actions</th>
+                <th>ユーザー</th>
+                <th>メンバーシップ</th>
+                <th>申請日時</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -100,10 +100,10 @@ export function MembersPage() {
                   <td>
                     <div className="actions-grid">
                       <button type="button" onClick={() => void approveMembership(item.membership.id)} disabled={loading}>
-                        Approve
+                        承認
                       </button>
                       <button type="button" onClick={() => void rejectMembership(item.membership.id)} disabled={loading}>
-                        Reject
+                        却下
                       </button>
                     </div>
                   </td>
@@ -116,14 +116,14 @@ export function MembersPage() {
 
       <section className="panel">
         <div className="panel-header">
-          <h2>Members</h2>
+          <h2>メンバー管理</h2>
           <span>
-            Owners {activeOwnerCount}/{selectedSpace.maxOwnerCount}
+            オーナー {activeOwnerCount}/{selectedSpace.maxOwnerCount}
           </span>
         </div>
 
         <div className="members-toolbar">
-          <div className="filter-group" role="tablist" aria-label="Membership status filter">
+          <div className="filter-group" role="tablist" aria-label="メンバー状態フィルター">
             {statusFilters.map((filter) => (
               <button
                 key={filter.value}
@@ -137,7 +137,7 @@ export function MembersPage() {
           </div>
           <input
             className="search-input"
-            placeholder="Search by name, email, membership id"
+            placeholder="名前・メールアドレス・メンバーシップIDで検索"
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
           />
@@ -147,12 +147,12 @@ export function MembersPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th>Restrictions</th>
-                <th>Actions</th>
+                <th>ユーザー</th>
+                <th>権限</th>
+                <th>状態</th>
+                <th>参加日時</th>
+                <th>制限</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -177,41 +177,41 @@ export function MembersPage() {
                     <td>{membershipStatusLabel(item.membership.status)}</td>
                     <td>{formatIso(item.membership.joinedAt)}</td>
                     <td>
-                      <div className="row-subtext">muteUntil: {formatIso(item.membership.muteUntil)}</div>
-                      <div className="row-subtext">suspendedUntil: {formatIso(item.membership.suspendedUntil)}</div>
-                      <div className="row-subtext">bannedAt: {formatIso(item.membership.bannedAt)}</div>
+                      <div className="row-subtext">ミュート期限: {formatIso(item.membership.muteUntil)}</div>
+                      <div className="row-subtext">利用停止期限: {formatIso(item.membership.suspendedUntil)}</div>
+                      <div className="row-subtext">BAN日時: {formatIso(item.membership.bannedAt)}</div>
                     </td>
                     <td>
                       <div className="actions-grid">
                         {canPromote && item.membership.role === 'guest' ? (
                           <button
                             type="button"
-                            onClick={() => void patchMembership(item.membership.id, { role: 'owner', reason: 'Grant owner' })}
+                            onClick={() => void patchMembership(item.membership.id, { role: 'owner', reason: 'オーナー権限を付与' })}
                             disabled={loading}
                           >
-                            Grant Owner
+                            オーナー付与
                           </button>
                         ) : null}
                         {canPromote && item.membership.role === 'owner' ? (
                           <>
                             <button
                               type="button"
-                              onClick={() => void patchMembership(item.membership.id, { role: 'guest', reason: 'Revoke owner' })}
+                              onClick={() => void patchMembership(item.membership.id, { role: 'guest', reason: 'オーナー権限を解除' })}
                               disabled={loading}
                             >
-                              Revoke Owner
+                              オーナー解除
                             </button>
                             <button
                               type="button"
                               onClick={() =>
                                 void patchMembership(item.membership.id, {
                                   role: 'primary_owner',
-                                  reason: 'Transfer primary owner',
+                                  reason: '主オーナー権限を移譲',
                                 })
                               }
                               disabled={loading}
                             >
-                              Transfer Primary
+                              主オーナー移譲
                             </button>
                           </>
                         ) : null}
@@ -219,22 +219,22 @@ export function MembersPage() {
                         {canModerate && item.membership.status === 'active' ? (
                           <>
                             <button type="button" onClick={() => void runMute(item.membership.id)} disabled={loading}>
-                              Mute
+                              ミュート
                             </button>
                             <button type="button" onClick={() => void runSuspend(item.membership.id)} disabled={loading}>
-                              Suspend
+                              利用停止
                             </button>
                             <button
                               type="button"
                               onClick={() =>
                                 void patchMembership(item.membership.id, {
                                   status: 'kicked',
-                                  reason: 'Kicked from members screen',
+                                  reason: 'メンバー管理画面から強制退出',
                                 })
                               }
                               disabled={loading}
                             >
-                              Kick
+                              強制退出
                             </button>
                           </>
                         ) : null}
@@ -245,12 +245,12 @@ export function MembersPage() {
                             onClick={() =>
                               void patchMembership(item.membership.id, {
                                 muteUntil: null,
-                                reason: 'Unmute member',
+                                reason: 'ミュートを解除',
                               })
                             }
                             disabled={loading}
                           >
-                            Unmute
+                            ミュート解除
                           </button>
                         ) : null}
 
@@ -260,12 +260,12 @@ export function MembersPage() {
                             onClick={() =>
                               void patchMembership(item.membership.id, {
                                 status: 'active',
-                                reason: 'Unsuspend member',
+                                reason: '利用停止を解除',
                               })
                             }
                             disabled={loading}
                           >
-                            Unsuspend
+                            利用停止解除
                           </button>
                         ) : null}
 
@@ -275,12 +275,12 @@ export function MembersPage() {
                             onClick={() =>
                               void patchMembership(item.membership.id, {
                                 status: 'banned',
-                                reason: 'Ban member',
+                                reason: 'BANを実行',
                               })
                             }
                             disabled={loading}
                           >
-                            Ban
+                            BAN
                           </button>
                         ) : null}
 
@@ -290,16 +290,16 @@ export function MembersPage() {
                             onClick={() =>
                               void patchMembership(item.membership.id, {
                                 status: 'active',
-                                reason: 'Unban member',
+                                reason: 'BANを解除',
                               })
                             }
                             disabled={loading}
                           >
-                            Unban
+                            BAN解除
                           </button>
                         ) : null}
 
-                        {isPrimary ? <span className="row-subtext">Primary owner protected</span> : null}
+                        {isPrimary ? <span className="row-subtext">主オーナーは保護されています</span> : null}
                       </div>
                     </td>
                   </tr>

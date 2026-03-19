@@ -91,14 +91,33 @@ const emptyMetrics: DashboardMetrics = {
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined)
 
+const localizedErrorMessages: Record<string, string> = {
+  UNAUTHENTICATED: 'ログイン情報を確認してください。',
+  FORBIDDEN: 'この操作を行う権限がありません。',
+  RESOURCE_NOT_FOUND: '対象データが見つかりません。',
+  user_not_found: 'ユーザーが見つかりません。',
+  space_not_found: 'スペースが見つかりません。',
+  membership_not_found: 'メンバーシップが見つかりません。',
+  post_not_found: '投稿が見つかりません。',
+  whisper_not_found: 'Whisper が見つかりません。',
+  report_not_found: '通報が見つかりません。',
+  owner_limit_reached: 'オーナー上限に達しています。',
+  invalid_membership_state: '現在の状態ではこの操作を実行できません。',
+  invalid_role_transition: 'この権限変更は許可されていません。',
+  duplicate_report: '同じ対象への重複通報はできません。',
+  cross_space_operation: '別スペースのデータは操作できません。',
+  forbidden_target: 'この対象には操作できません。',
+  membership_inactive: '現在のメンバー状態では操作できません。',
+}
+
 function normalizeError(error: unknown): string {
   if (error instanceof ApiClientError || error instanceof MockApiError) {
-    return `${error.code}: ${error.message}`
+    return localizedErrorMessages[error.code] ?? `${error.code}: ${error.message}`
   }
   if (error instanceof Error) {
     return error.message
   }
-  return 'Unknown error occurred.'
+  return '不明なエラーが発生しました。'
 }
 
 export function AdminProvider({ children }: PropsWithChildren) {

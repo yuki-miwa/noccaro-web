@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useAdminContext } from '../context/AdminContext'
-import { formatIso, reportStatusLabel } from '../utils/format'
+import { formatIso, reportReasonLabel, reportStatusLabel, resolutionLabel } from '../utils/format'
 import type { ReportStatus, ResolutionType } from '../types/api'
 
 const reportFilters: Array<{ label: string; value: 'all' | ReportStatus }> = [
-  { label: 'All', value: 'all' },
-  { label: 'Open', value: 'open' },
-  { label: 'Reviewing', value: 'reviewing' },
-  { label: 'Resolved', value: 'resolved' },
-  { label: 'Rejected', value: 'rejected' },
+  { label: 'すべて', value: 'all' },
+  { label: '未対応', value: 'open' },
+  { label: '確認中', value: 'reviewing' },
+  { label: '対応済み', value: 'resolved' },
+  { label: '却下', value: 'rejected' },
 ]
 
 const resolutionOptions: ResolutionType[] = ['no_action', 'content_removed', 'mute', 'kick', 'suspend', 'ban']
@@ -23,14 +23,14 @@ export function ReportsPage() {
   )
 
   if (!selectedSpace) {
-    return <p className="page-empty">Select an admin-capable space to triage reports.</p>
+    return <p className="page-empty">管理対象スペースを選択してください。</p>
   }
 
   return (
     <div className="page-stack">
       <section className="panel">
         <div className="panel-header">
-          <h2>Reports</h2>
+          <h2>通報一覧</h2>
           <span>GET /api/v1/admin/spaces/{selectedSpace.id}/reports</span>
         </div>
 
@@ -47,17 +47,18 @@ export function ReportsPage() {
           ))}
         </div>
 
+        {filteredReports.length === 0 ? <p className="empty-text">通報はありません。</p> : null}
         <div className="table-scroll">
           <table className="table">
             <thead>
               <tr>
-                <th>Report</th>
-                <th>Target Whisper</th>
-                <th>Reporter</th>
-                <th>Reason</th>
-                <th>Status</th>
-                <th>Created At</th>
-                <th>Actions</th>
+                <th>通報</th>
+                <th>対象Whisper</th>
+                <th>報告者</th>
+                <th>理由</th>
+                <th>状態</th>
+                <th>作成日時</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -75,7 +76,7 @@ export function ReportsPage() {
                     <div>{item.reporter.user.displayName}</div>
                     <div className="row-subtext">{item.reporter.user.email}</div>
                   </td>
-                  <td>{item.report.reasonType}</td>
+                  <td>{reportReasonLabel(item.report.reasonType)}</td>
                   <td>{reportStatusLabel(item.report.status)}</td>
                   <td>{formatIso(item.report.createdAt)}</td>
                   <td>
@@ -88,26 +89,26 @@ export function ReportsPage() {
                             onClick={() =>
                               void resolveReport(item.report.id, {
                                 resolutionType,
-                                note: `Resolved from reports screen (${resolutionType})`,
+                                note: `通報画面から対応: ${resolutionLabel(resolutionType)}`,
                               })
                             }
                             disabled={loading}
                           >
-                            {resolutionType}
+                            {resolutionLabel(resolutionType)}
                           </button>
                         ))}
                         {item.target.whisper ? (
                           <button
                             type="button"
-                            onClick={() => void removeWhisper(item.target.whisper!.id, 'Removed from reports screen')}
+                            onClick={() => void removeWhisper(item.target.whisper!.id, '通報画面から Whisper を削除')}
                             disabled={loading}
                           >
-                            Remove Whisper
+                            Whisper削除
                           </button>
                         ) : null}
                       </div>
                     ) : (
-                      <div className="row-subtext">Handled at: {formatIso(item.report.handledAt)}</div>
+                      <div className="row-subtext">対応日時: {formatIso(item.report.handledAt)}</div>
                     )}
                   </td>
                 </tr>

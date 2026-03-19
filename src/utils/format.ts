@@ -1,4 +1,13 @@
-import type { MembershipStatus, ReportStatus, SpaceRole, WhisperStatus } from '../types/api'
+import type {
+  JoinPolicy,
+  MembershipStatus,
+  PostStatus,
+  ReportReasonType,
+  ReportStatus,
+  ResolutionType,
+  SpaceRole,
+  WhisperStatus,
+} from '../types/api'
 
 export function formatIso(value: string | null): string {
   if (!value) {
@@ -18,11 +27,11 @@ export function formatIso(value: string | null): string {
 export function roleLabel(role: SpaceRole): string {
   switch (role) {
     case 'primary_owner':
-      return 'Primary Owner'
+      return '主オーナー'
     case 'owner':
-      return 'Owner'
+      return 'オーナー'
     case 'guest':
-      return 'Guest'
+      return 'ゲスト'
     default:
       return role
   }
@@ -31,17 +40,17 @@ export function roleLabel(role: SpaceRole): string {
 export function membershipStatusLabel(status: MembershipStatus): string {
   switch (status) {
     case 'pending':
-      return 'Pending'
+      return '承認待ち'
     case 'active':
-      return 'Active'
+      return '参加中'
     case 'suspended':
-      return 'Suspended'
+      return '利用停止'
     case 'kicked':
-      return 'Kicked'
+      return '強制退出'
     case 'banned':
-      return 'Banned'
+      return 'BAN'
     case 'left':
-      return 'Left'
+      return '退会'
     default:
       return status
   }
@@ -50,15 +59,15 @@ export function membershipStatusLabel(status: MembershipStatus): string {
 export function whisperStatusLabel(status: WhisperStatus): string {
   switch (status) {
     case 'active':
-      return 'Active'
+      return '公開中'
     case 'hidden_by_report':
-      return 'Hidden by report'
+      return '通報で非表示'
     case 'removed_by_owner':
-      return 'Removed by owner'
+      return '運営削除'
     case 'removed_by_system':
-      return 'Removed by system'
+      return 'システム削除'
     case 'expired':
-      return 'Expired'
+      return '期限切れ'
     default:
       return status
   }
@@ -67,14 +76,76 @@ export function whisperStatusLabel(status: WhisperStatus): string {
 export function reportStatusLabel(status: ReportStatus): string {
   switch (status) {
     case 'open':
-      return 'Open'
+      return '未対応'
     case 'reviewing':
-      return 'Reviewing'
+      return '確認中'
     case 'resolved':
-      return 'Resolved'
+      return '対応済み'
     case 'rejected':
-      return 'Rejected'
+      return '却下'
     default:
       return status
+  }
+}
+
+export function joinPolicyLabel(policy: JoinPolicy): string {
+  switch (policy) {
+    case 'auto_approve':
+      return '自動承認'
+    case 'approval_required':
+      return '承認制'
+    default:
+      return policy
+  }
+}
+
+export function postStatusLabel(status: PostStatus): string {
+  switch (status) {
+    case 'draft':
+      return '下書き'
+    case 'published':
+      return '公開中'
+    case 'archived':
+      return 'アーカイブ'
+    case 'deleted':
+      return '削除済み'
+    default:
+      return status
+  }
+}
+
+export function reportReasonLabel(reason: ReportReasonType): string {
+  switch (reason) {
+    case 'spam':
+      return 'スパム'
+    case 'harassment':
+      return '嫌がらせ'
+    case 'privacy_risk':
+      return 'プライバシー侵害'
+    case 'inappropriate':
+      return '不適切'
+    case 'other':
+      return 'その他'
+    default:
+      return reason
+  }
+}
+
+export function resolutionLabel(resolution: ResolutionType): string {
+  switch (resolution) {
+    case 'no_action':
+      return '対応なし'
+    case 'content_removed':
+      return '投稿削除'
+    case 'mute':
+      return 'ミュート'
+    case 'kick':
+      return '強制退出'
+    case 'suspend':
+      return '利用停止'
+    case 'ban':
+      return 'BAN'
+    default:
+      return resolution
   }
 }

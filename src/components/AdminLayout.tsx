@@ -3,12 +3,12 @@ import { useAdminContext } from '../context/AdminContext'
 import { roleLabel } from '../utils/format'
 
 const navigationItems = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/space-settings', label: 'Space Settings' },
-  { to: '/members', label: 'Members' },
-  { to: '/posts', label: 'Posts' },
-  { to: '/whispers', label: 'Whispers' },
-  { to: '/reports', label: 'Reports' },
+  { to: '/dashboard', label: 'ダッシュボード' },
+  { to: '/space-settings', label: 'スペース設定' },
+  { to: '/members', label: 'メンバー管理' },
+  { to: '/posts', label: '運営投稿' },
+  { to: '/whispers', label: 'Whisper管理' },
+  { to: '/reports', label: '通報対応' },
 ]
 
 export function AdminLayout() {
@@ -33,9 +33,9 @@ export function AdminLayout() {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <h1>Noccaro</h1>
-          <p>{serviceMode === 'mock' ? 'Admin Contract Mock' : 'Admin API Console'}</p>
+          <p>{serviceMode === 'mock' ? '管理画面モック' : '管理API接続'}</p>
         </div>
-        <nav className="sidebar-nav" aria-label="Main navigation">
+        <nav className="sidebar-nav" aria-label="メインナビゲーション">
           {navigationItems.map((item) => (
             <NavLink
               key={item.to}
@@ -51,26 +51,26 @@ export function AdminLayout() {
       <main className="content">
         <header className="topbar panel">
           <div>
-            <p className="eyebrow">Signed in as</p>
-            <h2>{user?.displayName ?? 'Unknown user'}</h2>
+            <p className="eyebrow">ログイン中</p>
+            <h2>{user?.displayName ?? '不明なユーザー'}</h2>
             <p>
               {user?.email ?? '-'}
               {selectedMembership ? ` / ${roleLabel(selectedMembership.role)}` : ''}
             </p>
             <small>
-              {selectedSpace ? `Space code: ${selectedSpace.code}` : 'No admin-capable space is currently selected.'}
+              {selectedSpace ? `スペースコード: ${selectedSpace.code}` : '操作可能なスペースが選択されていません。'}
             </small>
           </div>
 
           <div className="topbar-actions">
             <label className="select-field">
-              <span>Selected space</span>
+              <span>操作対象スペース</span>
               <select
                 value={selectedSpaceId ?? ''}
                 onChange={(event) => void selectSpace(event.target.value)}
                 disabled={loading || adminSpaces.length === 0}
               >
-                {adminSpaces.length === 0 ? <option value="">No admin spaces</option> : null}
+                {adminSpaces.length === 0 ? <option value="">管理権限のあるスペースなし</option> : null}
                 {adminSpaces.map((item) => (
                   <option key={item.space.id} value={item.space.id}>
                     {item.space.name}
@@ -79,21 +79,21 @@ export function AdminLayout() {
               </select>
             </label>
             <button type="button" onClick={() => void refresh()} disabled={loading}>
-              Refresh
+              更新
             </button>
             {serviceMode === 'mock' ? (
               <button type="button" onClick={() => void resetMock()} disabled={loading}>
-                Reset Mock
+                モック初期化
               </button>
             ) : null}
             <button type="button" onClick={() => void logout()} disabled={loading}>
-              Logout
+              ログアウト
             </button>
           </div>
         </header>
 
         {joinedSpaces.length > 0 && adminSpaces.length === 0 ? (
-          <p className="warning-banner">The current account belongs to spaces, but none of them has owner privileges.</p>
+          <p className="warning-banner">所属スペースはありますが、運営権限のあるスペースがありません。</p>
         ) : null}
         {error ? <p className="error-banner">{error}</p> : null}
 
