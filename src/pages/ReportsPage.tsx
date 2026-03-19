@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useAdminContext } from '../context/AdminContext'
 import { formatIso, reportStatusLabel } from '../utils/format'
-import type { ReportStatus, ResolutionType } from '../types/domain'
+import type { ReportStatus, ResolutionType } from '../types/api'
 
 const reportFilters: Array<{ label: string; value: 'all' | ReportStatus }> = [
   { label: 'All', value: 'all' },
@@ -11,49 +11,27 @@ const reportFilters: Array<{ label: string; value: 'all' | ReportStatus }> = [
   { label: 'Rejected', value: 'rejected' },
 ]
 
-const resolutionOptions: Array<{ label: string; value: ResolutionType | null }> = [
-  { label: 'mute', value: 'mute' },
-  { label: 'kick', value: 'kick' },
-  { label: 'suspend', value: 'suspend' },
-  { label: 'ban', value: 'ban' },
-]
+const resolutionOptions: ResolutionType[] = ['no_action', 'content_removed', 'mute', 'kick', 'suspend', 'ban']
 
 export function ReportsPage() {
-  const { snapshot, loading, resolveReport } = useAdminContext()
+  const { loading, removeWhisper, reports, resolveReport, selectedSpace } = useAdminContext()
   const [statusFilter, setStatusFilter] = useState<'all' | ReportStatus>('all')
 
-  const reports = useMemo(() => {
-    const allReports = snapshot?.reports ?? []
-    const activeSpaceId = snapshot?.activeSpaceId
-    return allReports
-      .filter((report) => report.spaceId === activeSpaceId)
-      .filter((report) => (statusFilter === 'all' ? true : report.status === statusFilter))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [snapshot, statusFilter])
+  const filteredReports = useMemo(
+    () => reports.filter((item) => (statusFilter === 'all' ? true : item.report.status === statusFilter)),
+    [reports, statusFilter],
+  )
 
-  if (!snapshot) {
-    return <p className="page-empty">Loading reports...</p>
-  }
-
-  const runResolve = async (
-    reportId: number,
-    status: 'resolved' | 'rejected',
-    resolutionType: ResolutionType | null,
-  ) => {
-    await resolveReport({
-      reportId,
-      status,
-      resolutionType,
-      note: `Handled from reports screen (${resolutionType ?? 'none'})`,
-    })
+  if (!selectedSpace) {
+    return <p className="page-empty">Select an admin-capable space to triage reports.</p>
   }
 
   return (
     <div className="page-stack">
       <section className="panel">
         <div className="panel-header">
-          <h2>Report Triage</h2>
-          <span>{reports.length} reports</span>
+          <h2>Reports</h2>
+          <span>GET /api/v1/admin/spaces/{selectedSpace.id}/reports</span>
         </div>
 
         <div className="filter-group">
@@ -74,76 +52,66 @@ export function ReportsPage() {
             <thead>
               <tr>
                 <th>Report</th>
-                <th>Target</th>
+                <th>Target Whisper</th>
+                <th>Reporter</th>
                 <th>Reason</th>
                 <th>Status</th>
-                <th>Detail</th>
                 <th>Created At</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {reports.map((report) => {
-                const reporter = snapshot.memberships.find(
-                  (membership) => membership.id === report.reporterMembershipId,
-                )
-                const reporterUser = snapshot.users.find((user) => user.id === reporter?.userId)
-
-                return (
-                  <tr key={report.id}>
-                    <td>
-                      <div>{report.publicId}</div>
-                      <div className="row-subtext">by {reporterUser?.displayName ?? report.reporterMembershipId}</div>
-                    </td>
-                    <td>
-                      {report.targetType}:{report.targetId}
-                    </td>
-                    <td>{report.reasonType}</td>
-                    <td>{reportStatusLabel(report.status)}</td>
-                    <td>{report.detail}</td>
-                    <td>{formatIso(report.createdAt)}</td>
-                    <td>
-                      {report.status === 'open' || report.status === 'reviewing' ? (
-                        <div className="actions-grid">
+              {filteredReports.map((item) => (
+                <tr key={item.report.id}>
+                  <td>
+                    <div>{item.report.id}</div>
+                    <div className="row-subtext">{item.report.detail ?? '-'}</div>
+                  </td>
+                  <td>
+                    <div>{item.target.whisper?.body ?? item.report.targetId}</div>
+                    <div className="row-subtext">{item.target.whisper?.id ?? '-'}</div>
+                  </td>
+                  <td>
+                    <div>{item.reporter.user.displayName}</div>
+                    <div className="row-subtext">{item.reporter.user.email}</div>
+                  </td>
+                  <td>{item.report.reasonType}</td>
+                  <td>{reportStatusLabel(item.report.status)}</td>
+                  <td>{formatIso(item.report.createdAt)}</td>
+                  <td>
+                    {item.report.status === 'open' || item.report.status === 'reviewing' ? (
+                      <div className="actions-grid">
+                        {resolutionOptions.map((resolutionType) => (
                           <button
+                            key={resolutionType}
                             type="button"
-                            onClick={() => void runResolve(report.id, 'resolved', 'no_action')}
+                            onClick={() =>
+                              void resolveReport(item.report.id, {
+                                resolutionType,
+                                note: `Resolved from reports screen (${resolutionType})`,
+                              })
+                            }
                             disabled={loading}
                           >
-                            Resolve No Action
+                            {resolutionType}
                           </button>
+                        ))}
+                        {item.target.whisper ? (
                           <button
                             type="button"
-                            onClick={() => void runResolve(report.id, 'resolved', 'content_removed')}
+                            onClick={() => void removeWhisper(item.target.whisper!.id, 'Removed from reports screen')}
                             disabled={loading}
                           >
-                            Resolve Remove Content
+                            Remove Whisper
                           </button>
-                          {resolutionOptions.map((option) => (
-                            <button
-                              key={option.label}
-                              type="button"
-                              onClick={() => void runResolve(report.id, 'resolved', option.value)}
-                              disabled={loading}
-                            >
-                              Resolve {option.label}
-                            </button>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => void runResolve(report.id, 'rejected', null)}
-                            disabled={loading}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="row-subtext">Handled at: {formatIso(report.handledAt)}</div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="row-subtext">Handled at: {formatIso(item.report.handledAt)}</div>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

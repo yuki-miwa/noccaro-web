@@ -1,52 +1,68 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useAdminContext } from '../context/AdminContext'
 
 interface SettingsForm {
+  name: string
+  description: string
+  spaceCode: string
   joinPolicy: 'auto_approve' | 'approval_required'
   maxOwnerCount: number
-  locationGridMeters: number
   whisperTtlMinutes: number
+  whisperMaxLength: number
+  locationGridMeters: number
+  locationJitterEnabled: boolean
+  whisperAutoHideReportThreshold: number
   whisperRateLimitPerMinute: number
   whisperRateLimitPer10Min: number
 }
 
-function toSettingsForm(space: {
-  joinPolicy: 'auto_approve' | 'approval_required'
-  maxOwnerCount: number
-  locationGridMeters: number
-  whisperTtlMinutes: number
-  whisperRateLimitPerMinute: number
-  whisperRateLimitPer10Min: number
-}): SettingsForm {
+function toSettingsForm(space: NonNullable<ReturnType<typeof useAdminContext>['selectedSpace']>): SettingsForm {
   return {
+    name: space.name,
+    description: space.description ?? '',
+    spaceCode: space.code,
     joinPolicy: space.joinPolicy,
     maxOwnerCount: space.maxOwnerCount,
-    locationGridMeters: space.locationGridMeters,
     whisperTtlMinutes: space.whisperTtlMinutes,
-    whisperRateLimitPerMinute: space.whisperRateLimitPerMinute,
-    whisperRateLimitPer10Min: space.whisperRateLimitPer10Min,
+    whisperMaxLength: space.whisperMaxLength,
+    locationGridMeters: space.locationGridMeters,
+    locationJitterEnabled: space.locationJitterEnabled,
+    whisperAutoHideReportThreshold: space.whisperAutoHideReportThreshold ?? 5,
+    whisperRateLimitPerMinute: space.whisperRateLimitPerMinute ?? 1,
+    whisperRateLimitPer10Min: space.whisperRateLimitPer10Min ?? 3,
   }
 }
 
 export function SpaceSettingsPage() {
-  const { snapshot, loading, updateSpaceSettings } = useAdminContext()
+  const { selectedMembership, selectedSpace } = useAdminContext()
 
-  const activeSpace = useMemo(
-    () => snapshot?.spaces.find((space) => space.id === snapshot.activeSpaceId) ?? null,
-    [snapshot],
-  )
-
-  const [form, setForm] = useState<SettingsForm | null>(activeSpace ? toSettingsForm(activeSpace) : null)
-
-  if (!activeSpace) {
-    return <p className="page-empty">Loading space settings...</p>
+  if (!selectedSpace || !selectedMembership) {
+    return <p className="page-empty">Select an admin-capable space to edit settings.</p>
   }
 
-  const effectiveForm = form ?? toSettingsForm(activeSpace)
+  return <SpaceSettingsForm key={selectedSpace.id} />
+}
+
+function SpaceSettingsForm() {
+  const { loading, selectedSpace, updateSpaceSettings } = useAdminContext()
+  const [form, setForm] = useState<SettingsForm>(toSettingsForm(selectedSpace!))
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    await updateSpaceSettings(effectiveForm)
+    await updateSpaceSettings({
+      name: form.name.trim(),
+      description: form.description.trim() || null,
+      spaceCode: form.spaceCode.trim(),
+      joinPolicy: form.joinPolicy,
+      maxOwnerCount: form.maxOwnerCount,
+      whisperTtlMinutes: form.whisperTtlMinutes,
+      whisperMaxLength: form.whisperMaxLength,
+      locationGridMeters: form.locationGridMeters,
+      locationJitterEnabled: form.locationJitterEnabled,
+      whisperAutoHideReportThreshold: form.whisperAutoHideReportThreshold,
+      whisperRateLimitPerMinute: form.whisperRateLimitPerMinute,
+      whisperRateLimitPer10Min: form.whisperRateLimitPer10Min,
+    })
   }
 
   return (
@@ -54,159 +70,125 @@ export function SpaceSettingsPage() {
       <section className="panel">
         <div className="panel-header">
           <h2>Space Settings</h2>
-          <span>Primary owner only</span>
+          <span>PATCH /api/v1/admin/spaces/{selectedSpace!.id}</span>
         </div>
         <form className="settings-form" onSubmit={(event) => void submit(event)}>
           <label>
+            <span>Space Name</span>
+            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
+          </label>
+          <label>
+            <span>Space Code</span>
+            <input
+              value={form.spaceCode}
+              onChange={(event) => setForm({ ...form, spaceCode: event.target.value })}
+              required
+            />
+          </label>
+          <label className="settings-form-full">
+            <span>Description</span>
+            <textarea
+              rows={4}
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+            />
+          </label>
+          <label>
             <span>Join Policy</span>
             <select
-              value={effectiveForm.joinPolicy}
+              value={form.joinPolicy}
               onChange={(event) =>
-                setForm((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        joinPolicy: event.target.value as SettingsForm['joinPolicy'],
-                      }
-                    : {
-                        ...toSettingsForm(activeSpace),
-                        joinPolicy: event.target.value as SettingsForm['joinPolicy'],
-                      },
-                )
+                setForm({
+                  ...form,
+                  joinPolicy: event.target.value as SettingsForm['joinPolicy'],
+                })
               }
             >
               <option value="approval_required">approval_required</option>
               <option value="auto_approve">auto_approve</option>
             </select>
           </label>
-
           <label>
-            <span>Owner Cap (excluding primary_owner)</span>
+            <span>Owner Cap</span>
             <input
               type="number"
               min={1}
-              value={effectiveForm.maxOwnerCount}
-              onChange={(event) =>
-                setForm((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        maxOwnerCount: Number(event.target.value),
-                      }
-                    : {
-                        ...toSettingsForm(activeSpace),
-                        maxOwnerCount: Number(event.target.value),
-                      },
-                )
-              }
+              value={form.maxOwnerCount}
+              onChange={(event) => setForm({ ...form, maxOwnerCount: Number(event.target.value) })}
             />
           </label>
-
           <label>
             <span>Whisper TTL (minutes)</span>
             <input
               type="number"
               min={30}
-              value={effectiveForm.whisperTtlMinutes}
-              onChange={(event) =>
-                setForm((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        whisperTtlMinutes: Number(event.target.value),
-                      }
-                    : {
-                        ...toSettingsForm(activeSpace),
-                        whisperTtlMinutes: Number(event.target.value),
-                      },
-                )
-              }
+              value={form.whisperTtlMinutes}
+              onChange={(event) => setForm({ ...form, whisperTtlMinutes: Number(event.target.value) })}
             />
           </label>
-
           <label>
-            <span>Whisper Rate Limit per minute</span>
+            <span>Whisper Max Length</span>
             <input
               type="number"
               min={1}
-              value={effectiveForm.whisperRateLimitPerMinute}
-              onChange={(event) =>
-                setForm((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        whisperRateLimitPerMinute: Number(event.target.value),
-                      }
-                    : {
-                        ...toSettingsForm(activeSpace),
-                        whisperRateLimitPerMinute: Number(event.target.value),
-                      },
-                )
-              }
+              max={30}
+              value={form.whisperMaxLength}
+              onChange={(event) => setForm({ ...form, whisperMaxLength: Number(event.target.value) })}
             />
           </label>
-
           <label>
-            <span>Whisper Rate Limit per 10 minutes</span>
-            <input
-              type="number"
-              min={1}
-              value={effectiveForm.whisperRateLimitPer10Min}
-              onChange={(event) =>
-                setForm((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        whisperRateLimitPer10Min: Number(event.target.value),
-                      }
-                    : {
-                        ...toSettingsForm(activeSpace),
-                        whisperRateLimitPer10Min: Number(event.target.value),
-                      },
-                )
-              }
-            />
-          </label>
-
-          <label>
-            <span>Location Grid Size (m)</span>
+            <span>Location Grid (m)</span>
             <input
               type="number"
               min={80}
-              value={effectiveForm.locationGridMeters}
+              value={form.locationGridMeters}
+              onChange={(event) => setForm({ ...form, locationGridMeters: Number(event.target.value) })}
+            />
+          </label>
+          <label>
+            <span>Auto-hide Report Threshold</span>
+            <input
+              type="number"
+              min={1}
+              value={form.whisperAutoHideReportThreshold}
               onChange={(event) =>
-                setForm((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        locationGridMeters: Number(event.target.value),
-                      }
-                    : {
-                        ...toSettingsForm(activeSpace),
-                        locationGridMeters: Number(event.target.value),
-                      },
-                )
+                setForm({
+                  ...form,
+                  whisperAutoHideReportThreshold: Number(event.target.value),
+                })
               }
             />
           </label>
-
+          <label>
+            <span>Rate Limit per Minute</span>
+            <input
+              type="number"
+              min={1}
+              value={form.whisperRateLimitPerMinute}
+              onChange={(event) => setForm({ ...form, whisperRateLimitPerMinute: Number(event.target.value) })}
+            />
+          </label>
+          <label>
+            <span>Rate Limit per 10 Minutes</span>
+            <input
+              type="number"
+              min={1}
+              value={form.whisperRateLimitPer10Min}
+              onChange={(event) => setForm({ ...form, whisperRateLimitPer10Min: Number(event.target.value) })}
+            />
+          </label>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={form.locationJitterEnabled}
+              onChange={(event) => setForm({ ...form, locationJitterEnabled: event.target.checked })}
+            />
+            <span>Enable location jitter</span>
+          </label>
           <button type="submit" disabled={loading}>
             Save Settings
           </button>
         </form>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <h2>In-Scope Rule Notes</h2>
-        </div>
-        <ul className="rule-list">
-          <li>Exactly one active primary_owner per space</li>
-          <li>Owner cap excludes primary_owner (DDL behavior)</li>
-          <li>Whisper max length is fixed to 30</li>
-          <li>Whisper auto-hide threshold defaults to 5 reports</li>
-          <li>No whisper reply/reaction in MVP</li>
-        </ul>
       </section>
     </div>
   )

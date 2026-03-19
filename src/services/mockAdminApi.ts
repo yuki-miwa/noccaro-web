@@ -21,10 +21,16 @@ interface CreatePostInput {
 }
 
 interface UpdateSpaceSettingsInput {
+  name?: string
+  description?: string | null
   joinPolicy?: 'auto_approve' | 'approval_required'
+  spaceCode?: string
   maxOwnerCount?: number
+  whisperMaxLength?: number
   locationGridMeters?: number
+  locationJitterEnabled?: boolean
   whisperTtlMinutes?: number
+  whisperAutoHideReportThreshold?: number
   whisperRateLimitPerMinute?: number
   whisperRateLimitPer10Min?: number
 }
@@ -54,6 +60,25 @@ interface CreateReportInput {
   targetId: number
   reasonType: ReportReasonType
   detail: string
+}
+
+interface PatchMembershipInput {
+  membershipId: number
+  role?: MembershipRole
+  status?: 'active' | 'suspended' | 'kicked' | 'banned' | 'left'
+  suspendedUntil?: string | null
+  muteUntil?: string | null
+  reason?: string
+}
+
+interface UpdatePostInput {
+  postId: number
+  title?: string
+  body?: string
+  status?: 'draft' | 'published' | 'archived' | 'deleted'
+  notifyMembers?: boolean
+  visibleFrom?: string | null
+  visibleTo?: string | null
 }
 
 function nowIso(): string {
@@ -145,14 +170,41 @@ export class MockAdminApi {
     }
 
     activeSpace.joinPolicy = input.joinPolicy ?? activeSpace.joinPolicy
+    activeSpace.name = input.name ?? activeSpace.name
+    activeSpace.description = input.description ?? activeSpace.description
+    activeSpace.spaceCode = input.spaceCode ?? activeSpace.spaceCode
     activeSpace.maxOwnerCount = maxOwnerCount
+    activeSpace.whisperMaxLength = input.whisperMaxLength ?? activeSpace.whisperMaxLength
     activeSpace.locationGridMeters = input.locationGridMeters ?? activeSpace.locationGridMeters
+    activeSpace.locationJitterEnabled = input.locationJitterEnabled ?? activeSpace.locationJitterEnabled
     activeSpace.whisperTtlMinutes = input.whisperTtlMinutes ?? activeSpace.whisperTtlMinutes
+    activeSpace.whisperAutoHideReportThreshold =
+      input.whisperAutoHideReportThreshold ?? activeSpace.whisperAutoHideReportThreshold
     activeSpace.whisperRateLimitPerMinute =
       input.whisperRateLimitPerMinute ?? activeSpace.whisperRateLimitPerMinute
     activeSpace.whisperRateLimitPer10Min =
       input.whisperRateLimitPer10Min ?? activeSpace.whisperRateLimitPer10Min
 
+    return structuredClone(this.snapshot)
+  }
+
+  async setCurrentUser(userId: number): Promise<AdminSnapshot> {
+    await delay(20)
+    const user = this.snapshot.users.find((item) => item.id === userId)
+    if (!user) {
+      throw new MockApiError('user_not_found', 'User not found.')
+    }
+    this.snapshot.currentUserId = userId
+    return structuredClone(this.snapshot)
+  }
+
+  async setActiveSpace(spaceId: number): Promise<AdminSnapshot> {
+    await delay(20)
+    const space = this.snapshot.spaces.find((item) => item.id === spaceId)
+    if (!space) {
+      throw new MockApiError('space_not_found', 'Space not found.')
+    }
+    this.snapshot.activeSpaceId = spaceId
     return structuredClone(this.snapshot)
   }
 
@@ -480,6 +532,91 @@ export class MockAdminApi {
     return structuredClone(this.snapshot)
   }
 
+  async updatePost(input: UpdatePostInput): Promise<AdminSnapshot> {
+    await delay()
+    const actor = this.getCurrentMembership(true)
+    if (actor.role !== 'owner' && actor.role !== 'primary_owner') {
+      throw new MockApiError('forbidden', 'Only owner roles can update posts.')
+    }
+
+    const post = this.snapshot.posts.find((item) => item.id === input.postId)
+    if (!post) {
+      throw new MockApiError('post_not_found', 'Post not found.')
+    }
+
+    post.title = input.title ?? post.title
+    post.body = input.body ?? post.body
+    post.status = input.status ?? post.status
+    post.notifyMembers = input.notifyMembers ?? post.notifyMembers
+    post.visibleFrom = input.visibleFrom ?? post.visibleFrom
+    post.visibleTo = input.visibleTo ?? post.visibleTo
+    post.updatedAt = nowIso()
+
+    if (post.status === 'published' && !post.publishedAt) {
+      post.publishedAt = nowIso()
+    }
+
+    return structuredClone(this.snapshot)
+  }
+
+  async publishPost(postId: number, notifyMembers: boolean): Promise<AdminSnapshot> {
+    await delay()
+    const post = this.snapshot.posts.find((item) => item.id === postId)
+    if (!post) {
+      throw new MockApiError('post_not_found', 'Post not found.')
+    }
+
+    post.status = 'published'
+    post.notifyMembers = notifyMembers
+    post.publishedAt = nowIso()
+    post.visibleFrom = post.visibleFrom ?? nowIso()
+    post.updatedAt = nowIso()
+
+    if (notifyMembers) {
+      const actor = this.getCurrentMembership(true)
+      const notificationId = this.getNextId(this.snapshot.notifications)
+      this.snapshot.notifications.unshift({
+        id: notificationId,
+        publicId: `ntf-${String(notificationId).padStart(4, '0')}`,
+        spaceId: this.snapshot.activeSpaceId,
+        sourceType: 'post',
+        sourceId: post.id,
+        createdByMembershipId: actor.id,
+        title: `Published: ${post.title}`,
+        body: post.body.slice(0, 120),
+        targetScope: 'all_active_members',
+        status: 'queued',
+        scheduledAt: nowIso(),
+        sentAt: null,
+        createdAt: nowIso(),
+      })
+    }
+
+    return structuredClone(this.snapshot)
+  }
+
+  async archivePost(postId: number): Promise<AdminSnapshot> {
+    await delay()
+    const post = this.snapshot.posts.find((item) => item.id === postId)
+    if (!post) {
+      throw new MockApiError('post_not_found', 'Post not found.')
+    }
+    post.status = 'archived'
+    post.updatedAt = nowIso()
+    return structuredClone(this.snapshot)
+  }
+
+  async deletePost(postId: number): Promise<AdminSnapshot> {
+    await delay()
+    const post = this.snapshot.posts.find((item) => item.id === postId)
+    if (!post) {
+      throw new MockApiError('post_not_found', 'Post not found.')
+    }
+    post.status = 'deleted'
+    post.updatedAt = nowIso()
+    return structuredClone(this.snapshot)
+  }
+
   async removeWhisper(whisperId: number, reason = 'Removed by moderator'): Promise<AdminSnapshot> {
     await delay()
     const actor = this.getCurrentMembership(true)
@@ -619,6 +756,68 @@ export class MockAdminApi {
           whisper.updatedAt = now
         }
       }
+    }
+
+    return structuredClone(this.snapshot)
+  }
+
+  async patchMembership(input: PatchMembershipInput): Promise<AdminSnapshot> {
+    await delay()
+
+    if (input.role === 'primary_owner') {
+      await this.transferPrimaryOwner(input.membershipId, input.reason ?? 'Primary owner transferred')
+    } else if (input.role === 'owner') {
+      await this.grantOwner(input.membershipId, input.reason ?? 'Promoted to owner')
+    } else if (input.role === 'guest') {
+      const targetMembership = this.findMembership(input.membershipId)
+      if (targetMembership.role === 'owner') {
+        await this.revokeOwner(input.membershipId, input.reason ?? 'Owner revoked')
+      }
+    }
+
+    if (input.muteUntil !== undefined) {
+      if (input.muteUntil) {
+        const hours = Math.max(1, Math.ceil((new Date(input.muteUntil).getTime() - Date.now()) / (60 * 60 * 1000)))
+        await this.muteMember({
+          membershipId: input.membershipId,
+          hours,
+          reason: input.reason ?? 'Muted by patch',
+        })
+      } else {
+        await this.unmuteMember(input.membershipId, input.reason ?? 'Mute removed')
+      }
+    }
+
+    if (input.status === 'suspended') {
+      const hours = Math.max(
+        1,
+        Math.ceil((new Date(input.suspendedUntil ?? nowIso()).getTime() - Date.now()) / (60 * 60 * 1000)),
+      )
+      await this.suspendMember({
+        membershipId: input.membershipId,
+        hours,
+        reason: input.reason ?? 'Suspended by patch',
+      })
+    } else if (input.status === 'kicked') {
+      await this.kickMember(input.membershipId, input.reason ?? 'Kicked by patch')
+    } else if (input.status === 'banned') {
+      await this.banMember(input.membershipId, input.reason ?? 'Banned by patch')
+    } else if (input.status === 'active') {
+      const targetMembership = this.findMembership(input.membershipId)
+      if (targetMembership.status === 'suspended') {
+        await this.unsuspendMember(input.membershipId, input.reason ?? 'Suspension removed')
+      }
+      if (targetMembership.status === 'banned') {
+        await this.unbanMember(input.membershipId, input.reason ?? 'Ban removed')
+      }
+    } else if (input.status === 'left') {
+      const actor = this.getCurrentMembership(true)
+      this.assertCanModerate(actor.role)
+      const targetMembership = this.findMembership(input.membershipId)
+      this.assertNotPrimaryOwner(targetMembership)
+      targetMembership.status = 'left'
+      targetMembership.leftAt = nowIso()
+      targetMembership.updatedAt = nowIso()
     }
 
     return structuredClone(this.snapshot)

@@ -82,6 +82,7 @@ export interface Space {
   whisperRateLimitPer10Min: number
   whisperMaxLength: number
   locationGridMeters: number
+  locationJitterEnabled: boolean
   createdByUserId: number
   createdAt: string
 }

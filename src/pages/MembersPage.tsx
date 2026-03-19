@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useAdminContext } from '../context/AdminContext'
 import { formatIso, membershipStatusLabel, roleLabel } from '../utils/format'
-import type { MembershipStatus } from '../types/domain'
+import type { MembershipStatus } from '../types/api'
 
 const statusFilters: Array<{ label: string; value: 'all' | MembershipStatus }> = [
   { label: 'All', value: 'all' },
@@ -9,84 +9,63 @@ const statusFilters: Array<{ label: string; value: 'all' | MembershipStatus }> =
   { label: 'Active', value: 'active' },
   { label: 'Suspended', value: 'suspended' },
   { label: 'Banned', value: 'banned' },
-  { label: 'Rejected', value: 'rejected' },
-  { label: 'Left/Kicked', value: 'left' },
+  { label: 'Kicked', value: 'kicked' },
+  { label: 'Left', value: 'left' },
 ]
+
+function hoursFromNowIso(hours: number): string {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
+}
 
 export function MembersPage() {
   const {
-    snapshot,
-    loading,
     approveMembership,
+    joinRequests,
+    loading,
+    members,
+    patchMembership,
     rejectMembership,
-    grantOwner,
-    revokeOwner,
-    transferPrimaryOwner,
-    muteMember,
-    unmuteMember,
-    kickMember,
-    suspendMember,
-    unsuspendMember,
-    banMember,
-    unbanMember,
+    selectedMembership,
+    selectedSpace,
   } = useAdminContext()
 
   const [statusFilter, setStatusFilter] = useState<'all' | MembershipStatus>('all')
   const [keyword, setKeyword] = useState('')
 
-  const activeSpace = snapshot?.spaces.find((space) => space.id === snapshot.activeSpaceId)
-  const memberships = useMemo(
-    () => snapshot?.memberships.filter((membership) => membership.spaceId === snapshot.activeSpaceId) ?? [],
-    [snapshot],
-  )
-  const currentMembership = memberships.find((membership) => membership.userId === snapshot?.currentUserId)
-
-  const activeOwnerCount = memberships.filter(
-    (membership) => membership.status === 'active' && membership.role === 'owner',
+  const activeOwnerCount = members.filter(
+    (item) => item.membership.status === 'active' && item.membership.role === 'owner',
   ).length
 
-  const filteredMemberships = useMemo(() => {
-    return memberships
-      .filter((membership) => {
-        if (statusFilter === 'all') {
-          return true
-        }
-        if (statusFilter === 'left') {
-          return membership.status === 'left' || membership.status === 'kicked'
-        }
-        return membership.status === statusFilter
-      })
-      .filter((membership) => {
-        if (!keyword.trim()) {
-          return true
-        }
-        const user = snapshot?.users.find((item) => item.id === membership.userId)
-        const merged = `${membership.publicId} ${user?.displayName ?? ''} ${user?.email ?? ''}`.toLowerCase()
-        return merged.includes(keyword.trim().toLowerCase())
-      })
-  }, [keyword, memberships, snapshot?.users, statusFilter])
+  const filteredMembers = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase()
+    return members.filter((item) => {
+      const matchesStatus = statusFilter === 'all' ? true : item.membership.status === statusFilter
+      const haystack = `${item.user.displayName} ${item.user.email} ${item.membership.id}`.toLowerCase()
+      const matchesKeyword = normalizedKeyword ? haystack.includes(normalizedKeyword) : true
+      return matchesStatus && matchesKeyword
+    })
+  }, [keyword, members, statusFilter])
 
-  if (!snapshot) {
-    return <p className="page-empty">Loading members...</p>
+  if (!selectedSpace || !selectedMembership) {
+    return <p className="page-empty">Select an admin-capable space to manage members.</p>
   }
 
-  const runMute = async (membershipId: number) => {
-    const input = window.prompt('Mute duration in hours (default: 24)', '24')
-    const hours = Number(input)
-    await muteMember({
-      membershipId,
-      hours: Number.isNaN(hours) || hours <= 0 ? 24 : hours,
-      reason: 'Muted from members page',
+  const runMute = async (membershipId: string) => {
+    const hours = Number(window.prompt('Mute duration in hours', '24') ?? '24')
+    const muteUntil = hoursFromNowIso(Number.isNaN(hours) || hours <= 0 ? 24 : hours)
+    await patchMembership(membershipId, {
+      muteUntil,
+      reason: 'Muted from admin members screen',
     })
   }
 
-  const runSuspend = async (membershipId: number) => {
-    const input = window.prompt('Suspend duration in hours (default: 72)', '72')
-    const hours = Number(input)
-    await suspendMember({
-      membershipId,
-      hours: Number.isNaN(hours) || hours <= 0 ? 72 : hours,
-      reason: 'Suspended from members page',
+  const runSuspend = async (membershipId: string) => {
+    const hours = Number(window.prompt('Suspend duration in hours', '72') ?? '72')
+    const suspendedUntil = hoursFromNowIso(Number.isNaN(hours) || hours <= 0 ? 72 : hours)
+    await patchMembership(membershipId, {
+      status: 'suspended',
+      suspendedUntil,
+      reason: 'Suspended from admin members screen',
     })
   }
 
@@ -94,11 +73,55 @@ export function MembersPage() {
     <div className="page-stack">
       <section className="panel">
         <div className="panel-header">
-          <h2>Member Control</h2>
+          <h2>Pending Join Requests</h2>
+          <span>{joinRequests.length}</span>
+        </div>
+        {joinRequests.length === 0 ? (
+          <p className="empty-text">No pending requests.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Membership</th>
+                <th>Requested At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {joinRequests.map((item) => (
+                <tr key={item.membership.id}>
+                  <td>
+                    <strong>{item.user.displayName}</strong>
+                    <div className="row-subtext">{item.user.email}</div>
+                  </td>
+                  <td>{item.membership.id}</td>
+                  <td>{formatIso(item.membership.createdAt)}</td>
+                  <td>
+                    <div className="actions-grid">
+                      <button type="button" onClick={() => void approveMembership(item.membership.id)} disabled={loading}>
+                        Approve
+                      </button>
+                      <button type="button" onClick={() => void rejectMembership(item.membership.id)} disabled={loading}>
+                        Reject
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Members</h2>
           <span>
-            Owner cap: {activeOwnerCount}/{activeSpace?.maxOwnerCount ?? 0} (excluding primary_owner)
+            Owners {activeOwnerCount}/{selectedSpace.maxOwnerCount}
           </span>
         </div>
+
         <div className="members-toolbar">
           <div className="filter-group" role="tablist" aria-label="Membership status filter">
             {statusFilters.map((filter) => (
@@ -114,7 +137,7 @@ export function MembersPage() {
           </div>
           <input
             className="search-input"
-            placeholder="Search by name/email/public ID"
+            placeholder="Search by name, email, membership id"
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
           />
@@ -124,7 +147,7 @@ export function MembersPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Member</th>
+                <th>User</th>
                 <th>Role</th>
                 <th>Status</th>
                 <th>Joined</th>
@@ -133,123 +156,145 @@ export function MembersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredMemberships.map((membership) => {
-                const user = snapshot.users.find((item) => item.id === membership.userId)
-                const isPrimary = membership.role === 'primary_owner'
-                const isCurrent = membership.id === currentMembership?.id
-                const isOwner = membership.role === 'owner'
-                const canOwnerToggle = currentMembership?.role === 'primary_owner' && !isPrimary
-                const canBan = currentMembership?.role === 'primary_owner' && !isPrimary
-                const canModerate = currentMembership?.role === 'owner' || currentMembership?.role === 'primary_owner'
+              {filteredMembers.map((item) => {
+                const isSelf = item.membership.id === selectedMembership.id
+                const isPrimary = item.membership.role === 'primary_owner'
+                const canPromote = selectedMembership.role === 'primary_owner' && !isPrimary
+                const canBan = selectedMembership.role === 'primary_owner' && !isPrimary && !isSelf
+                const canModerate =
+                  (selectedMembership.role === 'owner' || selectedMembership.role === 'primary_owner') &&
+                  !isPrimary &&
+                  !isSelf
 
                 return (
-                  <tr key={membership.id}>
+                  <tr key={item.membership.id}>
                     <td>
-                      <strong>{user?.displayName ?? membership.publicId}</strong>
-                      <div className="row-subtext">{user?.email ?? '-'}</div>
-                      <div className="row-subtext">{membership.publicId}</div>
+                      <strong>{item.user.displayName}</strong>
+                      <div className="row-subtext">{item.user.email}</div>
+                      <div className="row-subtext">{item.membership.id}</div>
                     </td>
-                    <td>{roleLabel(membership.role)}</td>
-                    <td>{membershipStatusLabel(membership.status)}</td>
-                    <td>{formatIso(membership.joinedAt)}</td>
+                    <td>{roleLabel(item.membership.role)}</td>
+                    <td>{membershipStatusLabel(item.membership.status)}</td>
+                    <td>{formatIso(item.membership.joinedAt)}</td>
                     <td>
-                      <div className="row-subtext">mute_until: {formatIso(membership.muteUntil)}</div>
-                      <div className="row-subtext">suspended_until: {formatIso(membership.suspendedUntil)}</div>
-                      <div className="row-subtext">banned_at: {formatIso(membership.bannedAt)}</div>
+                      <div className="row-subtext">muteUntil: {formatIso(item.membership.muteUntil)}</div>
+                      <div className="row-subtext">suspendedUntil: {formatIso(item.membership.suspendedUntil)}</div>
+                      <div className="row-subtext">bannedAt: {formatIso(item.membership.bannedAt)}</div>
                     </td>
                     <td>
                       <div className="actions-grid">
-                        {membership.status === 'pending' ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => void approveMembership(membership.id)}
-                              disabled={loading || !canModerate}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void rejectMembership(membership.id)}
-                              disabled={loading || !canModerate}
-                            >
-                              Reject
-                            </button>
-                          </>
-                        ) : null}
-
-                        {membership.status === 'active' && canOwnerToggle && membership.role === 'guest' ? (
+                        {canPromote && item.membership.role === 'guest' ? (
                           <button
                             type="button"
-                            onClick={() => void grantOwner(membership.id)}
+                            onClick={() => void patchMembership(item.membership.id, { role: 'owner', reason: 'Grant owner' })}
                             disabled={loading}
                           >
                             Grant Owner
                           </button>
                         ) : null}
-
-                        {membership.status === 'active' && canOwnerToggle && membership.role === 'owner' ? (
-                          <button
-                            type="button"
-                            onClick={() => void revokeOwner(membership.id)}
-                            disabled={loading}
-                          >
-                            Revoke Owner
-                          </button>
-                        ) : null}
-
-                        {membership.status === 'active' && canOwnerToggle && isOwner ? (
-                          <button
-                            type="button"
-                            onClick={() => void transferPrimaryOwner(membership.id)}
-                            disabled={loading}
-                          >
-                            Transfer Primary
-                          </button>
-                        ) : null}
-
-                        {membership.status === 'active' && canModerate && !isPrimary && !isCurrent ? (
+                        {canPromote && item.membership.role === 'owner' ? (
                           <>
-                            <button type="button" onClick={() => void runMute(membership.id)} disabled={loading}>
-                              Mute
+                            <button
+                              type="button"
+                              onClick={() => void patchMembership(item.membership.id, { role: 'guest', reason: 'Revoke owner' })}
+                              disabled={loading}
+                            >
+                              Revoke Owner
                             </button>
                             <button
                               type="button"
-                              onClick={() => void runSuspend(membership.id)}
+                              onClick={() =>
+                                void patchMembership(item.membership.id, {
+                                  role: 'primary_owner',
+                                  reason: 'Transfer primary owner',
+                                })
+                              }
                               disabled={loading}
                             >
+                              Transfer Primary
+                            </button>
+                          </>
+                        ) : null}
+
+                        {canModerate && item.membership.status === 'active' ? (
+                          <>
+                            <button type="button" onClick={() => void runMute(item.membership.id)} disabled={loading}>
+                              Mute
+                            </button>
+                            <button type="button" onClick={() => void runSuspend(item.membership.id)} disabled={loading}>
                               Suspend
                             </button>
-                            <button type="button" onClick={() => void kickMember(membership.id)} disabled={loading}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void patchMembership(item.membership.id, {
+                                  status: 'kicked',
+                                  reason: 'Kicked from members screen',
+                                })
+                              }
+                              disabled={loading}
+                            >
                               Kick
                             </button>
                           </>
                         ) : null}
 
-                        {membership.status === 'active' && canBan && !isCurrent && !isPrimary ? (
-                          <button type="button" onClick={() => void banMember(membership.id)} disabled={loading}>
-                            Ban
-                          </button>
-                        ) : null}
-
-                        {membership.muteUntil && canModerate ? (
-                          <button type="button" onClick={() => void unmuteMember(membership.id)} disabled={loading}>
+                        {item.membership.muteUntil && canModerate ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void patchMembership(item.membership.id, {
+                                muteUntil: null,
+                                reason: 'Unmute member',
+                              })
+                            }
+                            disabled={loading}
+                          >
                             Unmute
                           </button>
                         ) : null}
 
-                        {membership.status === 'suspended' && canModerate ? (
+                        {item.membership.status === 'suspended' && canModerate ? (
                           <button
                             type="button"
-                            onClick={() => void unsuspendMember(membership.id)}
+                            onClick={() =>
+                              void patchMembership(item.membership.id, {
+                                status: 'active',
+                                reason: 'Unsuspend member',
+                              })
+                            }
                             disabled={loading}
                           >
                             Unsuspend
                           </button>
                         ) : null}
 
-                        {membership.status === 'banned' && canBan ? (
-                          <button type="button" onClick={() => void unbanMember(membership.id)} disabled={loading}>
+                        {canBan && item.membership.status === 'active' ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void patchMembership(item.membership.id, {
+                                status: 'banned',
+                                reason: 'Ban member',
+                              })
+                            }
+                            disabled={loading}
+                          >
+                            Ban
+                          </button>
+                        ) : null}
+
+                        {canBan && item.membership.status === 'banned' ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void patchMembership(item.membership.id, {
+                                status: 'active',
+                                reason: 'Unban member',
+                              })
+                            }
+                            disabled={loading}
+                          >
                             Unban
                           </button>
                         ) : null}

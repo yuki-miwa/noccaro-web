@@ -1,9 +1,10 @@
-import type { MembershipRole, MembershipStatus, ReportStatus, WhisperStatus } from '../types/domain'
+import type { MembershipStatus, ReportStatus, SpaceRole, WhisperStatus } from '../types/api'
 
 export function formatIso(value: string | null): string {
   if (!value) {
     return '-'
   }
+
   return new Intl.DateTimeFormat('ja-JP', {
     year: 'numeric',
     month: '2-digit',
@@ -14,7 +15,7 @@ export function formatIso(value: string | null): string {
   }).format(new Date(value))
 }
 
-export function roleLabel(role: MembershipRole): string {
+export function roleLabel(role: SpaceRole): string {
   switch (role) {
     case 'primary_owner':
       return 'Primary Owner'
@@ -29,20 +30,18 @@ export function roleLabel(role: MembershipRole): string {
 
 export function membershipStatusLabel(status: MembershipStatus): string {
   switch (status) {
-    case 'active':
-      return 'Active'
     case 'pending':
       return 'Pending'
+    case 'active':
+      return 'Active'
     case 'suspended':
       return 'Suspended'
-    case 'banned':
-      return 'Banned'
     case 'kicked':
       return 'Kicked'
+    case 'banned':
+      return 'Banned'
     case 'left':
       return 'Left'
-    case 'rejected':
-      return 'Rejected'
     default:
       return status
   }

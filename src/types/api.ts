@@ -1,0 +1,209 @@
+export type JoinPolicy = 'auto_approve' | 'approval_required'
+export type SpaceRole = 'guest' | 'owner' | 'primary_owner'
+export type MembershipStatus = 'pending' | 'active' | 'suspended' | 'kicked' | 'banned' | 'left'
+export type WhisperStatus =
+  | 'active'
+  | 'hidden_by_report'
+  | 'removed_by_owner'
+  | 'removed_by_system'
+  | 'expired'
+export type ReportReasonType = 'spam' | 'harassment' | 'privacy_risk' | 'inappropriate' | 'other'
+export type ReportStatus = 'open' | 'reviewing' | 'resolved' | 'rejected'
+export type ResolutionType = 'no_action' | 'content_removed' | 'mute' | 'kick' | 'suspend' | 'ban'
+export type NotificationTargetScope = 'all_active_members' | 'owners_only'
+export type PostStatus = 'draft' | 'published' | 'archived' | 'deleted'
+
+export interface ApiListMeta {
+  hasMore: boolean
+  nextCursor: string | null
+  limit?: number
+}
+
+export interface ApiListResponse<T, TMeta extends object = ApiListMeta> {
+  data: T[]
+  meta: TMeta
+}
+
+export interface ApiResponse<T> {
+  data: T
+}
+
+export interface ApiErrorEnvelope {
+  error: {
+    code: string
+    message: string
+    details?: Record<string, unknown>
+  }
+}
+
+export interface UserResource {
+  id: string
+  email: string
+  displayName: string
+  status: 'active' | 'locked' | 'deleted'
+  emailVerifiedAt: string | null
+  lastLoginAt: string | null
+  createdAt: string
+}
+
+export interface SpaceResource {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  joinPolicy: JoinPolicy
+  status: 'active' | 'archived' | 'deleted'
+  maxOwnerCount: number
+  whisperTtlMinutes: number
+  whisperMaxLength: number
+  locationGridMeters: number
+  locationJitterEnabled: boolean
+  whisperAutoHideReportThreshold?: number
+  whisperRateLimitPerMinute?: number
+  whisperRateLimitPer10Min?: number
+  createdAt: string
+}
+
+export interface MembershipResource {
+  id: string
+  spaceId: string
+  userId: string
+  role: SpaceRole
+  status: MembershipStatus
+  joinedAt: string | null
+  approvedAt: string | null
+  leftAt: string | null
+  kickedAt: string | null
+  bannedAt: string | null
+  suspendedUntil: string | null
+  muteUntil: string | null
+  lastSeenAt: string | null
+  createdAt: string
+}
+
+export interface JoinedSpaceSummary {
+  space: SpaceResource
+  membership: MembershipResource
+  isSelected?: boolean
+}
+
+export interface PostResource {
+  id: string
+  spaceId: string
+  authorMembershipId: string
+  title: string
+  body: string
+  status: PostStatus
+  notifyMembers: boolean
+  publishedAt: string | null
+  visibleFrom: string | null
+  visibleTo: string | null
+  reactionCount: number
+  reactedByMe: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WhisperResource {
+  id: string
+  spaceId: string
+  membershipId: string
+  body: string
+  status: WhisperStatus
+  displayLat: number
+  displayLng: number
+  displayRadiusM: number
+  expiresAt: string
+  reportCount: number
+  createdAt: string
+}
+
+export interface ReportResource {
+  id: string
+  spaceId: string
+  reporterMembershipId: string
+  targetType: 'whisper' | 'post' | 'member'
+  targetId: string
+  reasonType: ReportReasonType
+  detail: string | null
+  status: ReportStatus
+  handledByMembershipId: string | null
+  handledAt: string | null
+  resolutionType: ResolutionType | null
+  createdAt: string
+}
+
+export interface PushDeviceResource {
+  id: string
+  platform: 'ios' | 'android'
+  pushToken: string
+  deviceUuid: string | null
+  appVersion: string | null
+  osVersion: string | null
+  isActive: boolean
+  lastSeenAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NotificationSettingsResource {
+  enabled: boolean
+}
+
+export interface AdminJoinRequestItem {
+  membership: MembershipResource
+  user: UserResource
+}
+
+export interface AdminMemberItem {
+  membership: MembershipResource
+  user: UserResource
+}
+
+export interface AdminReportItem {
+  report: ReportResource
+  target: {
+    type: 'whisper'
+    whisper?: WhisperResource
+  }
+  reporter: {
+    membership: MembershipResource
+    user: UserResource
+  }
+}
+
+export interface AuthResult {
+  token: string
+  user: UserResource
+}
+
+export interface MeResult {
+  user: UserResource
+  notificationSettings: NotificationSettingsResource
+}
+
+export interface JoinedSpacesResult {
+  joinedSpaces: JoinedSpaceSummary[]
+}
+
+export interface SpaceDetailResult {
+  space: SpaceResource
+  membership: MembershipResource
+}
+
+export interface MembershipResult {
+  membership: MembershipResource
+}
+
+export interface PostResult {
+  post: PostResource
+}
+
+export interface WhisperResult {
+  whisper: WhisperResource
+}
+
+export interface ReportMutationResult {
+  report: ReportResource
+  whisper?: Pick<WhisperResource, 'id' | 'status' | 'reportCount'>
+}

@@ -111,6 +111,7 @@ export const initialSnapshot: AdminSnapshot = {
       whisperRateLimitPer10Min: 3,
       whisperMaxLength: 30,
       locationGridMeters: 120,
+      locationJitterEnabled: true,
       createdByUserId: 1,
       createdAt: isoMinutesAgo(60 * 24 * 180),
     },
