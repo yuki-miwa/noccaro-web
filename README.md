@@ -1,6 +1,9 @@
 # noccaro-web
 
-Noccaro の Web 管理画面です。`backend_api_spec.md` の API 契約に合わせて、管理画面を `mock` / `real` の両モードで動かせる構成にしています。
+Noccaro の Web 管理画面です。`backend_api_spec.md` の API 契約に合わせて、以下 2 系統の画面を `mock` / `real` の両モードで動かせる構成にしています。
+
+- スペースオーナー向け管理画面
+- システム管理者向け管理画面
 
 ## 実装方針
 
@@ -36,6 +39,12 @@ Noccaro の Web 管理画面です。`backend_api_spec.md` の API 契約に合�
 
 ## 画面
 
+- System Admin Login
+- System Admin Dashboard
+- System Admin Spaces (スペース作成、初期主オーナー割当、停止状態管理)
+- System Admin Users (横断ユーザー検索、ロック/解除)
+- System Admin Reports (横断通報の解決)
+- System Admin Audit Logs
 - Login
 - Dashboard
 - Space Settings
@@ -52,6 +61,9 @@ cp .env.example .env.local
 npm run dev
 ```
 
+- スペースオーナー画面: `http://127.0.0.1:5173/`
+- システム管理画面: `http://127.0.0.1:5173/system-admin/login`
+
 ## 環境変数
 
 ```bash
@@ -65,8 +77,17 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ## Mock ログイン
 
+スペースオーナー:
+
 ```text
 email: primary-owner@noccaro.local
+password: password123
+```
+
+システム管理者:
+
+```text
+email: sysadmin@noccaro.local
 password: password123
 ```
 
@@ -90,6 +111,9 @@ npm run build
 - `src/pages/*`: 管理画面
 - `src/services/mockAdminApi.test.ts`: 主要ルールの単体テスト
 - `src/services/mockAdminService.test.ts`: API 契約レベルのモックテスト
+- `src/systemAdmin/*`: system admin 用の型、サービス、mock、context、画面群
+- `docs/system_admin_responsibility_split.md`: owner admin と system admin の責務分離方針
+- `docs/system_admin_api_draft.md`: system admin API の叩き台
 
 ## バックエンド連携に切り替える時
 
@@ -101,4 +125,5 @@ npm run build
 
 - このリポジトリにはバックエンド本体は含まれていません。`real` モードは API クライアント実装のみです。
 - Whisper の管理一覧は API 契約上 `GET /api/v1/spaces/{spaceId}/whispers` を利用しています。非表示済み whisper の詳細確認は主に Reports 画面経由です。
+- system admin 側の `real` API 実装はまだ叩き台段階です。現在は mock サービスで骨組みを確認する用途が中心です。
 - 現在の環境 Node.js `22.5.1` では Vite が警告を表示します（推奨は `22.12+`）。

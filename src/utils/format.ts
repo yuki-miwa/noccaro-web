@@ -8,6 +8,7 @@ import type {
   SpaceRole,
   WhisperStatus,
 } from '../types/api'
+import type { SystemSpaceStatus } from '../systemAdmin/types'
 
 export function formatIso(value: string | null): string {
   if (!value) {
@@ -147,5 +148,33 @@ export function resolutionLabel(resolution: ResolutionType): string {
       return 'BAN'
     default:
       return resolution
+  }
+}
+
+export function userStatusLabel(status: 'active' | 'locked' | 'deleted'): string {
+  switch (status) {
+    case 'active':
+      return '有効'
+    case 'locked':
+      return 'ロック中'
+    case 'deleted':
+      return '削除済み'
+    default:
+      return status
+  }
+}
+
+export function systemSpaceStatusLabel(status: SystemSpaceStatus): string {
+  switch (status) {
+    case 'active':
+      return '稼働中'
+    case 'suspended':
+      return '停止中'
+    case 'archived':
+      return 'アーカイブ'
+    case 'deleted':
+      return '削除済み'
+    default:
+      return status
   }
 }
