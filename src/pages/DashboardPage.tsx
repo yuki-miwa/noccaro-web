@@ -32,7 +32,7 @@ export function DashboardPage() {
         <StatCard title="承認待ち申請" value={metrics.pendingMemberCount} hint="GET /admin/spaces/{spaceId}/join-requests" />
         <StatCard title="公開中のWhisper" value={metrics.activeWhisperCount} hint="GET /spaces/{spaceId}/whispers" />
         <StatCard title="未対応の通報" value={metrics.openReportCount} hint="GET /admin/spaces/{spaceId}/reports" />
-        <StatCard title="公開中の運営投稿" value={metrics.publishedPostCount} hint="status=published" />
+        <StatCard title="公開中のオーナー投稿" value={metrics.publishedPostCount} hint="status=published" />
         <StatCard
           title="あなたの権限"
           value={roleLabel(selectedMembership.role)}
@@ -127,11 +127,11 @@ export function DashboardPage() {
       <section className="panel two-column-grid">
         <div>
           <div className="panel-header">
-            <h2>最近の運営投稿</h2>
+            <h2>最近のオーナー投稿</h2>
             <span>{posts.length}</span>
           </div>
           {posts.length === 0 ? (
-            <p className="empty-text">運営投稿はまだありません。</p>
+            <p className="empty-text">オーナー投稿はまだありません。</p>
           ) : (
             <ul className="event-list">
               {posts.slice(0, 5).map((post) => (
