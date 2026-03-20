@@ -6,7 +6,7 @@ const navigationItems = [
   { to: '/dashboard', label: 'ダッシュボード' },
   { to: '/space-settings', label: 'スペース設定' },
   { to: '/members', label: 'メンバー管理' },
-  { to: '/posts', label: '運営投稿' },
+  { to: '/posts', label: 'オーナー投稿' },
   { to: '/whispers', label: 'Whisper管理' },
   { to: '/reports', label: '通報対応' },
 ]

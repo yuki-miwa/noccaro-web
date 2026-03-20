@@ -8,6 +8,8 @@ import type {
   MeResult,
   MembershipResource,
   NotificationSettingsResource,
+  PostAudienceType,
+  PostCategory,
   PostResource,
   ReportResource,
   ResolutionType,
@@ -63,6 +65,9 @@ export interface PatchMembershipInput {
 }
 
 export interface CreateOrUpdatePostInput {
+  category?: PostCategory
+  audienceType?: PostAudienceType
+  recipientUserIds?: string[]
   title?: string
   body?: string
   status?: 'draft' | 'published' | 'archived' | 'deleted'

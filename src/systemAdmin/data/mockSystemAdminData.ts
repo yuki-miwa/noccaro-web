@@ -1,5 +1,6 @@
 import type { UserResource } from '../../types/api'
 import type {
+  SystemAdminPostItem,
   SystemAdminUser,
   SystemAuditLog,
   SystemReportSummary,
@@ -18,10 +19,12 @@ export interface MockSystemAdminState {
   admins: SystemAdminUser[]
   users: SystemUserSummary[]
   spaces: MockSystemAdminSpaceRecord[]
+  posts: SystemAdminPostItem[]
   reports: SystemReportSummary[]
   auditLogs: SystemAuditLog[]
   nextSpaceSequence: number
   nextMembershipSequence: number
+  nextPostSequence: number
   nextReportSequence: number
   nextAuditSequence: number
 }
@@ -298,6 +301,69 @@ export function createInitialSystemAdminState(): MockSystemAdminState {
     },
   ]
 
+  const admins: SystemAdminUser[] = [
+    {
+      id: 'system_admin_001',
+      email: 'sysadmin@noccaro.local',
+      displayName: 'Noccaro 運営管理者',
+      role: 'system_admin',
+      createdAt: '2026-03-01T00:00:00Z',
+    },
+  ]
+
+  const posts: SystemAdminPostItem[] = [
+    {
+      post: {
+        id: 'sys_post_001',
+        spaceId: 'space_001',
+        authorMembershipId: 'membership_space_001_primary',
+        category: 'operation',
+        audienceType: 'all_members',
+        title: 'システムメンテナンスのお知らせ',
+        body: '3月末にかけて一部機能の改善を予定しています。',
+        status: 'published',
+        notifyMembers: true,
+        publishedAt: '2026-03-18T09:00:00Z',
+        visibleFrom: null,
+        visibleTo: null,
+        reactionCount: 0,
+        reactedByMe: false,
+        isRead: false,
+        readAt: null,
+        targetedToMe: false,
+        recipientUserIds: [],
+        createdAt: '2026-03-18T08:30:00Z',
+        updatedAt: '2026-03-18T09:00:00Z',
+      },
+      createdBySystemAdmin: admins[0],
+    },
+    {
+      post: {
+        id: 'sys_post_002',
+        spaceId: 'space_001',
+        authorMembershipId: 'membership_space_001_primary',
+        category: 'operation',
+        audienceType: 'targeted_users',
+        title: '対象ユーザー向けの確認依頼',
+        body: 'プロフィール内容の確認をお願いします。',
+        status: 'draft',
+        notifyMembers: false,
+        publishedAt: null,
+        visibleFrom: null,
+        visibleTo: null,
+        reactionCount: 0,
+        reactedByMe: false,
+        isRead: false,
+        readAt: null,
+        targetedToMe: false,
+        recipientUserIds: ['user_guest_003'],
+        createdAt: '2026-03-19T07:00:00Z',
+        updatedAt: '2026-03-19T07:00:00Z',
+      },
+      createdBySystemAdmin: admins[0],
+    },
+  ]
+
   const auditLogs: SystemAuditLog[] = [
     {
       id: 'audit_001',
@@ -327,21 +393,15 @@ export function createInitialSystemAdminState(): MockSystemAdminState {
 
   return {
     currentAdminId: null,
-    admins: [
-      {
-        id: 'system_admin_001',
-        email: 'sysadmin@noccaro.local',
-        displayName: 'Noccaro 運営管理者',
-        role: 'system_admin',
-        createdAt: '2026-03-01T00:00:00Z',
-      },
-    ],
+    admins,
     users,
     spaces,
+    posts,
     reports,
     auditLogs,
     nextSpaceSequence: 4,
     nextMembershipSequence: 7,
+    nextPostSequence: 3,
     nextReportSequence: 4,
     nextAuditSequence: 4,
   }

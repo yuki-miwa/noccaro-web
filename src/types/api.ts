@@ -12,6 +12,8 @@ export type ReportStatus = 'open' | 'reviewing' | 'resolved' | 'rejected'
 export type ResolutionType = 'no_action' | 'content_removed' | 'mute' | 'kick' | 'suspend' | 'ban'
 export type NotificationTargetScope = 'all_active_members' | 'owners_only'
 export type PostStatus = 'draft' | 'published' | 'archived' | 'deleted'
+export type PostCategory = 'owner' | 'operation'
+export type PostAudienceType = 'all_members' | 'targeted_users'
 
 export interface ApiListMeta {
   hasMore: boolean
@@ -90,7 +92,9 @@ export interface JoinedSpaceSummary {
 export interface PostResource {
   id: string
   spaceId: string
-  authorMembershipId: string
+  authorMembershipId: string | null
+  category: PostCategory
+  audienceType: PostAudienceType
   title: string
   body: string
   status: PostStatus
@@ -100,6 +104,10 @@ export interface PostResource {
   visibleTo: string | null
   reactionCount: number
   reactedByMe: boolean
+  isRead: boolean
+  readAt: string | null
+  targetedToMe: boolean
+  recipientUserIds?: string[]
   createdAt: string
   updatedAt: string
 }

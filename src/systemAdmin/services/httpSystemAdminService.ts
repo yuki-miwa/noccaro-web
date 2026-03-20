@@ -4,6 +4,7 @@ import { getAppStorage } from '../../utils/storage'
 import type {
   SystemAdminAuthResult,
   SystemAdminMeResult,
+  SystemAdminPostItem,
   SystemAuditLog,
   SystemDashboardMetrics,
   SystemReportSummary,
@@ -14,12 +15,14 @@ import type {
 import type {
   AssignPrimaryOwnerInput,
   CreateSystemSpaceInput,
+  CreateOrUpdateSystemPostInput,
   PatchSystemSpaceInput,
   PatchSystemUserInput,
   ResolveSystemReportInput,
   SystemAdminLoginInput,
   SystemAdminService,
   SystemReportListQuery,
+  SystemPostListQuery,
   SystemSpaceListQuery,
   SystemUserListQuery,
 } from './systemAdminService'
@@ -104,6 +107,64 @@ export class HttpSystemAdminService implements SystemAdminService {
       },
     )
     return response.data
+  }
+
+  async getSpacePosts(
+    spaceId: string,
+    query?: SystemPostListQuery,
+  ): Promise<{ data: SystemAdminPostItem[]; meta: ApiListMeta }> {
+    return this.client.request<ApiListResponse<SystemAdminPostItem>>(
+      `/api/v1/system-admin/spaces/${spaceId}/posts`,
+      undefined,
+      query as Record<string, string | number | null | undefined> | undefined,
+    )
+  }
+
+  async createSpacePost(spaceId: string, input: CreateOrUpdateSystemPostInput): Promise<SystemAdminPostItem> {
+    const response = await this.client.request<ApiResponse<{ item: SystemAdminPostItem }>>(
+      `/api/v1/system-admin/spaces/${spaceId}/posts`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    )
+    return response.data.item
+  }
+
+  async updateSpacePost(postId: string, input: CreateOrUpdateSystemPostInput): Promise<SystemAdminPostItem> {
+    const response = await this.client.request<ApiResponse<{ item: SystemAdminPostItem }>>(
+      `/api/v1/system-admin/posts/${postId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    )
+    return response.data.item
+  }
+
+  async publishSpacePost(postId: string, notifyMembers: boolean): Promise<SystemAdminPostItem> {
+    const response = await this.client.request<ApiResponse<{ item: SystemAdminPostItem }>>(
+      `/api/v1/system-admin/posts/${postId}/publish`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ notifyMembers }),
+      },
+    )
+    return response.data.item
+  }
+
+  async archiveSpacePost(postId: string): Promise<SystemAdminPostItem> {
+    const response = await this.client.request<ApiResponse<{ item: SystemAdminPostItem }>>(
+      `/api/v1/system-admin/posts/${postId}/archive`,
+      {
+        method: 'POST',
+      },
+    )
+    return response.data.item
+  }
+
+  async deleteSpacePost(postId: string): Promise<void> {
+    await this.client.request<void>(`/api/v1/system-admin/posts/${postId}`, { method: 'DELETE' })
   }
 
   async getUsers(query?: SystemUserListQuery): Promise<{ data: SystemUserSummary[]; meta: ApiListMeta }> {

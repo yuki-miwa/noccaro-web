@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { useAdminContext } from '../context/AdminContext'
-import type { PostAudienceType } from '../types/api'
-import { formatIso, postAudienceLabel, postStatusLabel } from '../utils/format'
+import type { PostAudienceType } from '../../types/api'
+import { formatIso, postAudienceLabel, postStatusLabel } from '../../utils/format'
+import { useSystemAdminContext } from '../context/SystemAdminContext'
 
 interface PostFormState {
   title: string
@@ -21,33 +21,52 @@ const initialForm: PostFormState = {
   recipientUserIds: [],
 }
 
-export function PostsPage() {
-  const { archivePost, createPost, deletePost, loading, members, posts, publishPost, selectedSpace, updatePost } =
-    useAdminContext()
+export function SystemPostsPage() {
+  const {
+    archivePost,
+    createPost,
+    deletePost,
+    loading,
+    postSpaceId,
+    posts,
+    publishPost,
+    selectPostSpace,
+    spaces,
+    updatePost,
+    users,
+  } = useSystemAdminContext()
   const [form, setForm] = useState<PostFormState>(initialForm)
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
 
+  const selectedSpace = useMemo(
+    () => spaces.find((item) => item.space.id === postSpaceId) ?? null,
+    [postSpaceId, spaces],
+  )
+
   const recipientOptions = useMemo(
     () =>
-      members
-        .filter((item) => item.membership.status === 'active')
-        .map((item) => ({
-          id: item.user.id,
-          name: item.user.displayName,
-          detail: `${item.user.email} / ${item.membership.role === 'guest' ? 'ゲスト' : '運営側'}`,
-        }))
+      users
+        .filter((item) =>
+          item.memberships.some((membership) => membership.spaceId === postSpaceId && membership.status === 'active'),
+        )
+        .map((item) => {
+          const membership = item.memberships.find(
+            (candidate) => candidate.spaceId === postSpaceId && candidate.status === 'active',
+          )
+          return {
+            id: item.user.id,
+            name: item.user.displayName,
+            detail: `${item.user.email} / ${membership?.role === 'guest' ? 'ゲスト' : '運営側'}`,
+          }
+        })
         .sort((left, right) => left.name.localeCompare(right.name, 'ja')),
-    [members],
+    [postSpaceId, users],
   )
 
   const recipientMap = useMemo(
     () => Object.fromEntries(recipientOptions.map((item) => [item.id, item])),
     [recipientOptions],
   )
-
-  if (!selectedSpace) {
-    return <p className="page-empty">管理対象スペースを選択してください。</p>
-  }
 
   const toggleRecipient = (userId: string) => {
     setForm((current) => ({
@@ -74,7 +93,7 @@ export function PostsPage() {
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!form.title.trim() || !form.body.trim()) {
+    if (!postSpaceId || !form.title.trim() || !form.body.trim()) {
       return
     }
 
@@ -83,11 +102,11 @@ export function PostsPage() {
     }
 
     const payload = {
-      category: 'owner' as const,
+      category: 'operation' as const,
       title: form.title.trim(),
       body: form.body.trim(),
-      notifyMembers: form.audienceType === 'targeted_users' ? false : form.notifyMembers,
       status: form.status,
+      notifyMembers: form.audienceType === 'targeted_users' ? false : form.notifyMembers,
       audienceType: form.audienceType,
       recipientUserIds: form.audienceType === 'targeted_users' ? form.recipientUserIds : [],
     }
@@ -118,12 +137,27 @@ export function PostsPage() {
     <div className="page-stack">
       <section className="panel">
         <div className="panel-header">
-          <h2>{editingPostId ? 'オーナー投稿を編集' : 'オーナー投稿を作成'}</h2>
+          <h2>{editingPostId ? '運営お知らせを編集' : '運営お知らせを作成'}</h2>
           <span>
-            {editingPostId ? `PATCH /api/v1/admin/posts/${editingPostId}` : `POST /api/v1/admin/spaces/${selectedSpace.id}/posts`}
+            {editingPostId
+              ? `PATCH /api/v1/system-admin/posts/${editingPostId}`
+              : postSpaceId
+                ? `POST /api/v1/system-admin/spaces/${postSpaceId}/posts`
+                : '投稿先スペースを選択してください'}
           </span>
         </div>
         <form className="post-form" onSubmit={(event) => void submit(event)}>
+          <label>
+            <span>投稿先スペース</span>
+            <select value={postSpaceId ?? ''} onChange={(event) => void selectPostSpace(event.target.value)}>
+              {spaces.length === 0 ? <option value="">スペースがありません</option> : null}
+              {spaces.map((item) => (
+                <option key={item.space.id} value={item.space.id}>
+                  {item.space.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             <span>タイトル</span>
             <input
@@ -134,7 +168,7 @@ export function PostsPage() {
               required
             />
           </label>
-          <label>
+          <label className="settings-form-full">
             <span>本文</span>
             <textarea
               rows={6}
@@ -175,13 +209,13 @@ export function PostsPage() {
             <span>{form.audienceType === 'targeted_users' ? '指定アカウント向けでは通知できません' : 'メンバーに通知する'}</span>
           </label>
           {form.audienceType === 'targeted_users' ? (
-            <div className="recipient-panel">
+            <div className="recipient-panel settings-form-full">
               <div className="recipient-panel-header">
                 <strong>配信先アカウント</strong>
                 <span>{form.recipientUserIds.length}件選択中</span>
               </div>
               {recipientOptions.length === 0 ? (
-                <p className="empty-text">配信先に指定できる有効メンバーがいません。</p>
+                <p className="empty-text">このスペースに有効メンバーがいないため、指定配信はできません。</p>
               ) : (
                 <div className="recipient-list">
                   {recipientOptions.map((option) => (
@@ -199,7 +233,7 @@ export function PostsPage() {
                   ))}
                 </div>
               )}
-              <p className="field-hint">指定したアカウントだけが、この投稿を「あなたへ」付きで受け取ります。</p>
+              <p className="field-hint">指定したアカウントだけが「あなたへ」ラベル付きで受け取ります。</p>
             </div>
           ) : null}
           <div className="actions-grid">
@@ -207,6 +241,7 @@ export function PostsPage() {
               type="submit"
               disabled={
                 loading ||
+                !postSpaceId ||
                 !form.title.trim() ||
                 !form.body.trim() ||
                 (form.audienceType === 'targeted_users' && form.recipientUserIds.length === 0)
@@ -225,85 +260,95 @@ export function PostsPage() {
 
       <section className="panel">
         <div className="panel-header">
-          <h2>オーナー投稿一覧</h2>
-          <span>{posts.length}件</span>
+          <h2>運営お知らせ一覧</h2>
+          <span>{selectedSpace ? `${selectedSpace.space.name} / ${posts.length}件` : `${posts.length}件`}</span>
         </div>
         {posts.length === 0 ? (
-          <p className="empty-text">オーナー投稿はまだありません。</p>
+          <p className="empty-text">このスペースの運営お知らせはまだありません。</p>
         ) : (
           <div className="stack-list">
-            {posts.map((post) => (
-              <article key={post.id} className="entry-card">
-                <header>
-                  <div className="entry-card-title-group">
-                    <strong>{post.title}</strong>
-                    <div className="tag-row">
-                      <span className="pill pill-muted">{postAudienceLabel(post.audienceType)}</span>
-                      {post.audienceType === 'targeted_users' ? <span className="pill pill-soft">あなたへ表示対象あり</span> : null}
+            {posts.map((item) => {
+              const { post } = item
+              return (
+                <article key={post.id} className="entry-card">
+                  <header>
+                    <div className="entry-card-title-group">
+                      <strong>{post.title}</strong>
+                      <div className="tag-row">
+                        <span className="pill pill-strong">運営</span>
+                        <span className="pill pill-muted">{postAudienceLabel(post.audienceType)}</span>
+                      </div>
                     </div>
-                  </div>
-                  <span className={`status-pill status-${post.status}`}>{postStatusLabel(post.status)}</span>
-                </header>
-                <p>{post.body}</p>
-                <dl className="entry-meta-list">
-                  <div>
-                    <dt>配信先</dt>
-                    <dd>{recipientSummary(post.recipientUserIds)}</dd>
-                  </div>
-                  <div>
-                    <dt>通知</dt>
-                    <dd>{post.notifyMembers ? '通知あり' : '通知なし'}</dd>
-                  </div>
-                  <div>
-                    <dt>公開</dt>
-                    <dd>{formatIso(post.publishedAt)}</dd>
-                  </div>
-                </dl>
-                <footer>
-                  <small>
-                    作成 {formatIso(post.createdAt)} / 更新 {formatIso(post.updatedAt)} / リアクション {post.reactionCount}件
-                  </small>
-                </footer>
-                <div className="actions-grid top-gap">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingPostId(post.id)
-                      setForm({
-                        title: post.title,
-                        body: post.body,
-                        status: post.status === 'published' ? 'published' : 'draft',
-                        notifyMembers: post.notifyMembers,
-                        audienceType: post.audienceType,
-                        recipientUserIds: [...(post.recipientUserIds ?? [])],
-                      })
-                    }}
-                    disabled={loading}
-                  >
-                    編集
-                  </button>
-                  {post.status !== 'published' ? (
+                    <span className={`status-pill status-${post.status}`}>{postStatusLabel(post.status)}</span>
+                  </header>
+                  <p>{post.body}</p>
+                  <dl className="entry-meta-list">
+                    <div>
+                      <dt>投稿先</dt>
+                      <dd>{selectedSpace?.space.name ?? post.spaceId}</dd>
+                    </div>
+                    <div>
+                      <dt>配信先</dt>
+                      <dd>{recipientSummary(post.recipientUserIds)}</dd>
+                    </div>
+                    <div>
+                      <dt>作成者</dt>
+                      <dd>{item.createdBySystemAdmin?.displayName ?? 'システム管理者'}</dd>
+                    </div>
+                    <div>
+                      <dt>通知</dt>
+                      <dd>{post.notifyMembers ? '通知あり' : '通知なし'}</dd>
+                    </div>
+                  </dl>
+                  <footer>
+                    <small>
+                      作成 {formatIso(post.createdAt)} / 更新 {formatIso(post.updatedAt)} / 公開 {formatIso(post.publishedAt)}
+                    </small>
+                  </footer>
+                  <div className="actions-grid top-gap">
                     <button
                       type="button"
-                      onClick={() => void publishPost(post.id, post.audienceType === 'all_members' ? post.notifyMembers : false)}
+                      onClick={() => {
+                        setEditingPostId(post.id)
+                        setForm({
+                          title: post.title,
+                          body: post.body,
+                          status: post.status === 'published' ? 'published' : 'draft',
+                          notifyMembers: post.notifyMembers,
+                          audienceType: post.audienceType,
+                          recipientUserIds: [...(post.recipientUserIds ?? [])],
+                        })
+                        if (post.spaceId !== postSpaceId) {
+                          void selectPostSpace(post.spaceId)
+                        }
+                      }}
                       disabled={loading}
                     >
-                      公開
+                      編集
                     </button>
-                  ) : null}
-                  {post.status !== 'archived' && post.status !== 'deleted' ? (
-                    <button type="button" onClick={() => void archivePost(post.id)} disabled={loading}>
-                      アーカイブ
-                    </button>
-                  ) : null}
-                  {post.status !== 'deleted' ? (
-                    <button type="button" onClick={() => void deletePost(post.id)} disabled={loading}>
-                      削除
-                    </button>
-                  ) : null}
-                </div>
-              </article>
-            ))}
+                    {post.status !== 'published' ? (
+                      <button
+                        type="button"
+                        onClick={() => void publishPost(post.id, post.audienceType === 'all_members' ? post.notifyMembers : false)}
+                        disabled={loading}
+                      >
+                        公開
+                      </button>
+                    ) : null}
+                    {post.status !== 'archived' && post.status !== 'deleted' ? (
+                      <button type="button" onClick={() => void archivePost(post.id)} disabled={loading}>
+                        アーカイブ
+                      </button>
+                    ) : null}
+                    {post.status !== 'deleted' ? (
+                      <button type="button" onClick={() => void deletePost(post.id)} disabled={loading}>
+                        削除
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              )
+            })}
           </div>
         )}
       </section>

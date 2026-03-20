@@ -59,4 +59,37 @@ describe('MockSystemAdminService', () => {
     expect(summary.primaryOwner.userId).toBe('user_new_006')
     expect(summary.space.id).toBe('space_003')
   })
+
+  it('creates and publishes targeted operation notices', async () => {
+    const service = new MockSystemAdminService()
+    await service.login({
+      email: 'sysadmin@noccaro.local',
+      password: 'password123',
+    })
+
+    const created = await service.createSpacePost('space_001', {
+      category: 'operation',
+      title: '個別フォロー',
+      body: '指定ユーザー向けのご案内です。',
+      status: 'draft',
+      notifyMembers: false,
+      audienceType: 'targeted_users',
+      recipientUserIds: ['user_guest_003'],
+    })
+
+    const updated = await service.updateSpacePost(created.post.id, {
+      audienceType: 'targeted_users',
+      recipientUserIds: ['user_guest_003', 'user_owner_002'],
+      notifyMembers: false,
+    })
+
+    const published = await service.publishSpacePost(updated.post.id, false)
+    const posts = await service.getSpacePosts('space_001', { category: 'operation', limit: 100 })
+
+    expect(created.post.category).toBe('operation')
+    expect(created.post.audienceType).toBe('targeted_users')
+    expect(updated.post.recipientUserIds).toEqual(['user_guest_003', 'user_owner_002'])
+    expect(published.post.status).toBe('published')
+    expect(posts.data.some((item) => item.post.id === created.post.id)).toBe(true)
+  })
 })

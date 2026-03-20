@@ -65,4 +65,36 @@ describe('MockAdminService', () => {
     expect(published.status).toBe('published')
     expect(posts.data.some((post) => post.id === created.id)).toBe(true)
   })
+
+  it('supports targeted owner notices with recipient selection', async () => {
+    const service = new MockAdminService()
+    await service.login({
+      email: 'primary-owner@noccaro.local',
+      password: 'password123',
+    })
+
+    const joinedSpaces = await service.getJoinedSpaces()
+    const spaceId = joinedSpaces.joinedSpaces[0].space.id
+
+    const created = await service.createAdminPost(spaceId, {
+      category: 'owner',
+      title: 'あなたへのお知らせ',
+      body: '対象ユーザーだけが受け取ります。',
+      status: 'draft',
+      notifyMembers: false,
+      audienceType: 'targeted_users',
+      recipientUserIds: ['usr-0003'],
+    })
+
+    const updated = await service.updateAdminPost(created.id, {
+      audienceType: 'targeted_users',
+      recipientUserIds: ['usr-0003', 'usr-0004'],
+      notifyMembers: false,
+    })
+
+    expect(created.category).toBe('owner')
+    expect(created.audienceType).toBe('targeted_users')
+    expect(created.recipientUserIds).toEqual(['usr-0003'])
+    expect(updated.recipientUserIds).toEqual(['usr-0003', 'usr-0004'])
+  })
 })

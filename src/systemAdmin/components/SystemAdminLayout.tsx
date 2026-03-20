@@ -4,6 +4,7 @@ import { useSystemAdminContext } from '../context/SystemAdminContext'
 const navigationItems = [
   { to: '/system-admin/dashboard', label: 'ダッシュボード' },
   { to: '/system-admin/spaces', label: 'スペース管理' },
+  { to: '/system-admin/posts', label: '運営お知らせ' },
   { to: '/system-admin/users', label: 'ユーザー管理' },
   { to: '/system-admin/reports', label: '横断通報' },
   { to: '/system-admin/audit', label: '監査ログ' },

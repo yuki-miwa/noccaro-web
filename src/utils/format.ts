@@ -1,5 +1,7 @@
 import type {
   JoinPolicy,
+  PostAudienceType,
+  PostCategory,
   MembershipStatus,
   PostStatus,
   ReportReasonType,
@@ -112,6 +114,28 @@ export function postStatusLabel(status: PostStatus): string {
       return '削除済み'
     default:
       return status
+  }
+}
+
+export function postCategoryLabel(category: PostCategory): string {
+  switch (category) {
+    case 'owner':
+      return 'オーナー'
+    case 'operation':
+      return '運営'
+    default:
+      return category
+  }
+}
+
+export function postAudienceLabel(audienceType: PostAudienceType): string {
+  switch (audienceType) {
+    case 'all_members':
+      return '全メンバー向け'
+    case 'targeted_users':
+      return '指定アカウント向け'
+    default:
+      return audienceType
   }
 }
 

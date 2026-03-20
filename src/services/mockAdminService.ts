@@ -55,6 +55,14 @@ export class MockAdminService implements AdminService {
 
   private readonly engine = new MockAdminApi()
   private token = storage.getItem(TOKEN_KEY)
+  private readonly postConfigs = new Map<
+    string,
+    {
+      category: 'owner'
+      audienceType: 'all_members' | 'targeted_users'
+      recipientUserIds: string[]
+    }
+  >()
 
   hasStoredSession(): boolean {
     return Boolean(this.token)
@@ -285,6 +293,7 @@ export class MockAdminService implements AdminService {
     const snapshot = await this.getSnapshotForSpace(spaceId)
     this.assertAdminMembership(this.getCurrentSpaceMembership(snapshot))
 
+    this.assertAudienceInput(input.audienceType, input.notifyMembers, input.recipientUserIds)
     await this.engine.createPost({
       title: input.title ?? '',
       body: input.body ?? '',
@@ -315,12 +324,22 @@ export class MockAdminService implements AdminService {
       })
     }
 
+    this.postConfigs.set(created.publicId, {
+      category: 'owner',
+      audienceType: input.audienceType ?? 'all_members',
+      recipientUserIds: input.audienceType === 'targeted_users' ? [...(input.recipientUserIds ?? [])] : [],
+    })
+
     return this.getPostResource(created.publicId)
   }
 
   async updateAdminPost(postId: string, input: CreateOrUpdatePostInput): Promise<PostResource> {
     const post = await this.findPostByPublicId(postId)
     await this.engine.setActiveSpace(post.spaceId)
+    const currentConfig = this.getPostConfig(post.publicId)
+    const nextAudienceType = input.audienceType ?? currentConfig.audienceType
+    const nextRecipients = input.recipientUserIds ?? currentConfig.recipientUserIds
+    this.assertAudienceInput(nextAudienceType, input.notifyMembers ?? post.notifyMembers, nextRecipients)
     await this.engine.updatePost({
       postId: post.id,
       title: input.title,
@@ -330,12 +349,19 @@ export class MockAdminService implements AdminService {
       visibleFrom: input.visibleFrom,
       visibleTo: input.visibleTo,
     })
+    this.postConfigs.set(postId, {
+      category: 'owner',
+      audienceType: nextAudienceType,
+      recipientUserIds: nextAudienceType === 'targeted_users' ? [...nextRecipients] : [],
+    })
     return this.getPostResource(postId)
   }
 
   async publishAdminPost(postId: string, notifyMembers: boolean): Promise<PostResource> {
     const post = await this.findPostByPublicId(postId)
     await this.engine.setActiveSpace(post.spaceId)
+    const config = this.getPostConfig(post.publicId)
+    this.assertAudienceInput(config.audienceType, notifyMembers, config.recipientUserIds)
     await this.engine.publishPost(post.id, notifyMembers)
     return this.getPostResource(postId)
   }
@@ -430,6 +456,7 @@ export class MockAdminService implements AdminService {
 
   async resetMock(): Promise<void> {
     await this.engine.reset()
+    this.postConfigs.clear()
     if (this.token) {
       await this.restoreSession()
     }
@@ -650,10 +677,13 @@ export class MockAdminService implements AdminService {
 
     const reactions = snapshot.postReactions.filter((item) => item.postId === post.id)
 
+    const config = this.getPostConfig(post.publicId)
     return {
       id: post.publicId,
       spaceId: space.publicId,
       authorMembershipId: snapshot.memberships.find((item) => item.id === post.authorMembershipId)?.publicId ?? '',
+      category: config.category,
+      audienceType: config.audienceType,
       title: post.title,
       body: post.body,
       status: post.status,
@@ -663,8 +693,44 @@ export class MockAdminService implements AdminService {
       visibleTo: post.visibleTo,
       reactionCount: reactions.length,
       reactedByMe: reactions.some((item) => item.membershipId === currentMembership.id),
+      isRead: false,
+      readAt: null,
+      targetedToMe: false,
+      recipientUserIds: config.recipientUserIds,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
+    }
+  }
+
+  private getPostConfig(postPublicId: string): {
+    category: 'owner'
+    audienceType: 'all_members' | 'targeted_users'
+    recipientUserIds: string[]
+  } {
+    return (
+      this.postConfigs.get(postPublicId) ?? {
+        category: 'owner',
+        audienceType: 'all_members',
+        recipientUserIds: [],
+      }
+    )
+  }
+
+  private assertAudienceInput(
+    audienceType: 'all_members' | 'targeted_users' | undefined,
+    notifyMembers: boolean | undefined,
+    recipientUserIds: string[] | undefined,
+  ): void {
+    if (audienceType !== 'targeted_users') {
+      return
+    }
+
+    if (notifyMembers) {
+      throw new MockApiError('VALIDATION_ERROR', '指定アカウント向けでは通知を有効にできません。')
+    }
+
+    if (!recipientUserIds || recipientUserIds.length === 0) {
+      throw new MockApiError('VALIDATION_ERROR', '配信先アカウントを1件以上選択してください。')
     }
   }
 

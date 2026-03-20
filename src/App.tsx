@@ -14,6 +14,7 @@ import { SystemAdminProvider, useSystemAdminContext } from './systemAdmin/contex
 import { SystemAuditPage } from './systemAdmin/pages/SystemAuditPage'
 import { SystemDashboardPage } from './systemAdmin/pages/SystemDashboardPage'
 import { SystemLoginPage } from './systemAdmin/pages/SystemLoginPage'
+import { SystemPostsPage } from './systemAdmin/pages/SystemPostsPage'
 import { SystemReportsPage } from './systemAdmin/pages/SystemReportsPage'
 import { SystemSpacesPage } from './systemAdmin/pages/SystemSpacesPage'
 import { SystemUsersPage } from './systemAdmin/pages/SystemUsersPage'
@@ -98,6 +99,7 @@ function SystemAdminRoutes() {
             <Route index element={<Navigate to="/system-admin/dashboard" replace />} />
             <Route path="dashboard" element={<SystemDashboardPage />} />
             <Route path="spaces" element={<SystemSpacesPage />} />
+            <Route path="posts" element={<SystemPostsPage />} />
             <Route path="users" element={<SystemUsersPage />} />
             <Route path="reports" element={<SystemReportsPage />} />
             <Route path="audit" element={<SystemAuditPage />} />

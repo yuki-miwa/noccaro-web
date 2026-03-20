@@ -470,10 +470,12 @@ button:disabled {
 }
 
 .post-form input,
+.post-form select,
 .post-form textarea {
   border: 1px solid #c5d1e8;
   border-radius: 8px;
   padding: 9px 10px;
+  background: #fff;
 }
 
 .check-row {
@@ -535,6 +537,127 @@ button:disabled {
 .entry-card footer {
   display: grid;
   gap: 2px;
+}
+
+.entry-card-title-group {
+  display: grid;
+  gap: 6px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.pill-muted {
+  background: #eef3fb;
+  color: #40547f;
+  border: 1px solid #d4deef;
+}
+
+.pill-soft {
+  background: #fff3e4;
+  color: #91520e;
+  border: 1px solid #f0cf9e;
+}
+
+.pill-strong {
+  background: #e9f7ef;
+  color: #1b6a3d;
+  border: 1px solid #b7dfc7;
+}
+
+.entry-meta-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.entry-meta-list div {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+}
+
+.entry-meta-list dt {
+  color: #5d6d90;
+  font-size: 0.82rem;
+}
+
+.entry-meta-list dd {
+  margin: 0;
+  color: #25365f;
+  font-size: 0.88rem;
+}
+
+.recipient-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dde6f5;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.recipient-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.recipient-panel-header span {
+  color: #607197;
+  font-size: 0.8rem;
+}
+
+.recipient-list {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.recipient-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #dde6f5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.recipient-item span {
+  display: grid;
+  gap: 2px;
+}
+
+.recipient-item strong {
+  color: #243560;
+  font-size: 0.9rem;
+}
+
+.recipient-item small {
+  color: #5d6d90;
+  font-size: 0.78rem;
+}
+
+.field-hint {
+  margin: 0;
+  color: #607197;
+  font-size: 0.8rem;
 }
 
 @media (max-width: 1024px) {

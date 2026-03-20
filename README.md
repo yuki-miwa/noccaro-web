@@ -32,6 +32,12 @@ Noccaro の Web 管理画面です。`backend_api_spec.md` の API 契約に合�
 - `POST /api/v1/admin/posts/{postId}/publish`
 - `POST /api/v1/admin/posts/{postId}/archive`
 - `DELETE /api/v1/admin/posts/{postId}`
+- `GET /api/v1/system-admin/spaces/{spaceId}/posts`
+- `POST /api/v1/system-admin/spaces/{spaceId}/posts`
+- `PATCH /api/v1/system-admin/posts/{postId}`
+- `POST /api/v1/system-admin/posts/{postId}/publish`
+- `POST /api/v1/system-admin/posts/{postId}/archive`
+- `DELETE /api/v1/system-admin/posts/{postId}`
 - `GET /api/v1/spaces/{spaceId}/whispers`
 - `GET /api/v1/admin/spaces/{spaceId}/reports`
 - `POST /api/v1/admin/reports/{reportId}/resolve`
@@ -42,6 +48,7 @@ Noccaro の Web 管理画面です。`backend_api_spec.md` の API 契約に合�
 - System Admin Login
 - System Admin Dashboard
 - System Admin Spaces (スペース作成、初期主オーナー割当、停止状態管理)
+- System Admin Posts (operation お知らせ作成、指定アカウント配信)
 - System Admin Users (横断ユーザー検索、ロック/解除)
 - System Admin Reports (横断通報の解決)
 - System Admin Audit Logs
@@ -49,7 +56,7 @@ Noccaro の Web 管理画面です。`backend_api_spec.md` の API 契約に合�
 - Dashboard
 - Space Settings
 - Members (承認・owner付与・mute/suspend/kick/ban など)
-- Posts (下書き、編集、公開、アーカイブ、削除)
+- Posts (owner お知らせの下書き、編集、公開、アーカイブ、削除、指定アカウント配信)
 - Whispers (一覧、削除)
 - Reports (通報トリアージ、解決)
 
@@ -121,9 +128,18 @@ npm run build
 2. `VITE_API_BASE_URL` に Laravel API のベース URL を指定
 3. 既存画面は `AdminService` 契約のまま利用可能
 
+## お知らせ管理
+
+- owner 管理画面では `owner` カテゴリのお知らせを扱います
+- system admin 画面では `operation` カテゴリのお知らせを扱います
+- どちらも `all_members` / `targeted_users` を切り替えられます
+- `targeted_users` の場合は対象アカウントを複数指定できます
+- 指定配信では通知は無効化されます
+- post object は `category`, `audienceType`, `recipientUserIds`, `isRead`, `readAt`, `targetedToMe` を受け取れる前提です
+
 ## 既知事項
 
 - このリポジトリにはバックエンド本体は含まれていません。`real` モードは API クライアント実装のみです。
 - Whisper の管理一覧は API 契約上 `GET /api/v1/spaces/{spaceId}/whispers` を利用しています。非表示済み whisper の詳細確認は主に Reports 画面経由です。
-- system admin 側の `real` API 実装はまだ叩き台段階です。現在は mock サービスで骨組みを確認する用途が中心です。
+- system admin 側の `real` API も operation お知らせ管理まで接続済みです。
 - 現在の環境 Node.js `22.5.1` では Vite が警告を表示します（推奨は `22.12+`）。

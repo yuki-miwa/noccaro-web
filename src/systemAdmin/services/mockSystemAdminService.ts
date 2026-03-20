@@ -2,6 +2,7 @@ import type { ApiListMeta, ResolutionType } from '../../types/api'
 import { getAppStorage } from '../../utils/storage'
 import { createInitialSystemAdminState } from '../data/mockSystemAdminData'
 import type {
+  SystemAdminPostItem,
   SystemAdminAuthResult,
   SystemAdminMeResult,
   SystemAuditLog,
@@ -14,11 +15,13 @@ import type {
 import type {
   AssignPrimaryOwnerInput,
   CreateSystemSpaceInput,
+  CreateOrUpdateSystemPostInput,
   PatchSystemSpaceInput,
   PatchSystemUserInput,
   ResolveSystemReportInput,
   SystemAdminLoginInput,
   SystemAdminService,
+  SystemPostListQuery,
   SystemReportListQuery,
   SystemSpaceListQuery,
   SystemUserListQuery,
@@ -264,6 +267,135 @@ export class MockSystemAdminService implements SystemAdminService {
     return this.toSpaceSummary(spaceId)
   }
 
+  async getSpacePosts(
+    spaceId: string,
+    query?: SystemPostListQuery,
+  ): Promise<{ data: SystemAdminPostItem[]; meta: ApiListMeta }> {
+    this.requireCurrentAdmin()
+    this.findSpaceRecord(spaceId)
+
+    const category = query?.category ?? 'all'
+    const items = this.state.posts
+      .filter((item) => item.post.spaceId === spaceId)
+      .filter((item) => (category === 'all' ? true : item.post.category === category))
+      .sort((left, right) => right.post.updatedAt.localeCompare(left.post.updatedAt))
+      .map((item) => cloneValue(item))
+
+    return {
+      data: items,
+      meta: listMeta(items, query?.limit),
+    }
+  }
+
+  async createSpacePost(spaceId: string, input: CreateOrUpdateSystemPostInput): Promise<SystemAdminPostItem> {
+    const admin = this.requireCurrentAdmin()
+    const space = this.findSpaceRecord(spaceId).space
+    const audienceType = input.audienceType ?? 'all_members'
+    const recipients = this.resolveRecipientUserIds(spaceId, audienceType, input.recipientUserIds ?? [])
+    const publishedNow = input.status === 'published'
+    const createdAt = nowIso()
+
+    const item: SystemAdminPostItem = {
+      post: {
+        id: `sys_post_${String(this.state.nextPostSequence).padStart(3, '0')}`,
+        spaceId,
+        authorMembershipId: this.resolveAuthorMembershipId(spaceId),
+        category: 'operation',
+        audienceType,
+        title: input.title?.trim() ?? '',
+        body: input.body?.trim() ?? '',
+        status: input.status ?? 'draft',
+        notifyMembers: audienceType === 'targeted_users' ? false : Boolean(input.notifyMembers),
+        publishedAt: publishedNow ? createdAt : null,
+        visibleFrom: input.visibleFrom ?? null,
+        visibleTo: input.visibleTo ?? null,
+        reactionCount: 0,
+        reactedByMe: false,
+        isRead: false,
+        readAt: null,
+        targetedToMe: false,
+        recipientUserIds: recipients,
+        createdAt,
+        updatedAt: createdAt,
+      },
+      createdBySystemAdmin: admin,
+    }
+
+    if (!item.post.title || !item.post.body) {
+      throw new SystemAdminApiError('VALIDATION_ERROR', 'タイトルと本文は必須です。')
+    }
+
+    this.state.nextPostSequence += 1
+    this.state.posts.unshift(item)
+    this.addAuditLog('system_post_created', 'space', spaceId, `${space.name} に運営お知らせを作成しました。`)
+
+    return cloneValue(item)
+  }
+
+  async updateSpacePost(postId: string, input: CreateOrUpdateSystemPostInput): Promise<SystemAdminPostItem> {
+    const postItem = this.findPostItem(postId)
+    const audienceType = input.audienceType ?? postItem.post.audienceType
+    const recipients = this.resolveRecipientUserIds(
+      postItem.post.spaceId,
+      audienceType,
+      input.recipientUserIds ?? postItem.post.recipientUserIds ?? [],
+    )
+
+    postItem.post = {
+      ...postItem.post,
+      title: input.title?.trim() ?? postItem.post.title,
+      body: input.body?.trim() ?? postItem.post.body,
+      status: input.status ?? postItem.post.status,
+      audienceType,
+      recipientUserIds: recipients,
+      notifyMembers:
+        audienceType === 'targeted_users'
+          ? false
+          : input.notifyMembers ?? postItem.post.notifyMembers,
+      visibleFrom: input.visibleFrom === undefined ? postItem.post.visibleFrom : input.visibleFrom,
+      visibleTo: input.visibleTo === undefined ? postItem.post.visibleTo : input.visibleTo,
+      updatedAt: nowIso(),
+    }
+
+    if (postItem.post.status === 'published' && !postItem.post.publishedAt) {
+      postItem.post.publishedAt = nowIso()
+    }
+
+    this.addAuditLog('system_post_updated', 'space', postItem.post.spaceId, `${postItem.post.title} を更新しました。`)
+
+    return cloneValue(postItem)
+  }
+
+  async publishSpacePost(postId: string, notifyMembers: boolean): Promise<SystemAdminPostItem> {
+    const postItem = this.findPostItem(postId)
+    if (postItem.post.audienceType === 'targeted_users' && notifyMembers) {
+      throw new SystemAdminApiError('VALIDATION_ERROR', '指定アカウント向けでは通知を有効にできません。')
+    }
+
+    postItem.post.status = 'published'
+    postItem.post.notifyMembers = notifyMembers
+    postItem.post.publishedAt = postItem.post.publishedAt ?? nowIso()
+    postItem.post.updatedAt = nowIso()
+    this.addAuditLog('system_post_published', 'space', postItem.post.spaceId, `${postItem.post.title} を公開しました。`)
+
+    return cloneValue(postItem)
+  }
+
+  async archiveSpacePost(postId: string): Promise<SystemAdminPostItem> {
+    const postItem = this.findPostItem(postId)
+    postItem.post.status = 'archived'
+    postItem.post.updatedAt = nowIso()
+    this.addAuditLog('system_post_archived', 'space', postItem.post.spaceId, `${postItem.post.title} をアーカイブしました。`)
+
+    return cloneValue(postItem)
+  }
+
+  async deleteSpacePost(postId: string): Promise<void> {
+    const postItem = this.findPostItem(postId)
+    this.state.posts = this.state.posts.filter((item) => item.post.id !== postId)
+    this.addAuditLog('system_post_deleted', 'space', postItem.post.spaceId, `${postItem.post.title} を削除しました。`)
+  }
+
   async getUsers(query?: SystemUserListQuery): Promise<{ data: SystemUserSummary[]; meta: ApiListMeta }> {
     this.requireCurrentAdmin()
     const search = normalizeSearch(query?.search)
@@ -395,6 +527,45 @@ export class MockSystemAdminService implements SystemAdminService {
         openReportCount,
       },
     }
+  }
+
+  private findPostItem(postId: string): SystemAdminPostItem {
+    const item = this.state.posts.find((candidate) => candidate.post.id === postId)
+    if (!item) {
+      throw new SystemAdminApiError('RESOURCE_NOT_FOUND', '対象のお知らせが見つかりません。')
+    }
+
+    return item
+  }
+
+  private resolveAuthorMembershipId(spaceId: string): string | null {
+    return this.findSpaceRecord(spaceId).primaryOwner.membershipId ?? null
+  }
+
+  private resolveRecipientUserIds(
+    spaceId: string,
+    audienceType: 'all_members' | 'targeted_users',
+    recipientUserIds: string[],
+  ): string[] {
+    if (audienceType !== 'targeted_users') {
+      return []
+    }
+
+    const uniqueRecipientUserIds = Array.from(new Set(recipientUserIds))
+    if (uniqueRecipientUserIds.length === 0) {
+      throw new SystemAdminApiError('VALIDATION_ERROR', '配信先アカウントを1件以上選択してください。')
+    }
+
+    const invalidRecipient = uniqueRecipientUserIds.find((userId) => {
+      const user = this.state.users.find((item) => item.user.id === userId)
+      return !user?.memberships.some((membership) => membership.spaceId === spaceId && membership.status === 'active')
+    })
+
+    if (invalidRecipient) {
+      throw new SystemAdminApiError('CONFLICT', '指定したアカウントはこのスペースの有効メンバーではありません。')
+    }
+
+    return uniqueRecipientUserIds
   }
 
   private buildDashboardMetrics(): SystemDashboardMetrics {

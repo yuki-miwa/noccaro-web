@@ -1,5 +1,6 @@
 import type {
   ApiListMeta,
+  PostAudienceType,
   ReportReasonType,
   ReportStatus,
   ResolutionType,
@@ -9,6 +10,7 @@ import type {
   SystemAdminMeResult,
   SystemAuditLog,
   SystemDashboardMetrics,
+  SystemAdminPostItem,
   SystemReportSummary,
   SystemSpaceResource,
   SystemSpaceStatus,
@@ -74,6 +76,24 @@ export interface ResolveSystemReportInput {
   note?: string | null
 }
 
+export interface SystemPostListQuery {
+  category?: 'all' | 'owner' | 'operation'
+  cursor?: string | null
+  limit?: number
+}
+
+export interface CreateOrUpdateSystemPostInput {
+  category?: 'operation'
+  audienceType?: PostAudienceType
+  recipientUserIds?: string[]
+  title?: string
+  body?: string
+  status?: 'draft' | 'published' | 'archived' | 'deleted'
+  notifyMembers?: boolean
+  visibleFrom?: string | null
+  visibleTo?: string | null
+}
+
 export interface SystemAdminLoginInput {
   email: string
   password: string
@@ -90,6 +110,15 @@ export interface SystemAdminService {
   createSpace(input: CreateSystemSpaceInput): Promise<SystemSpaceSummary>
   patchSpace(spaceId: string, input: PatchSystemSpaceInput): Promise<SystemSpaceResource>
   assignPrimaryOwner(spaceId: string, input: AssignPrimaryOwnerInput): Promise<SystemSpaceSummary>
+  getSpacePosts(
+    spaceId: string,
+    query?: SystemPostListQuery,
+  ): Promise<{ data: SystemAdminPostItem[]; meta: ApiListMeta }>
+  createSpacePost(spaceId: string, input: CreateOrUpdateSystemPostInput): Promise<SystemAdminPostItem>
+  updateSpacePost(postId: string, input: CreateOrUpdateSystemPostInput): Promise<SystemAdminPostItem>
+  publishSpacePost(postId: string, notifyMembers: boolean): Promise<SystemAdminPostItem>
+  archiveSpacePost(postId: string): Promise<SystemAdminPostItem>
+  deleteSpacePost(postId: string): Promise<void>
   getUsers(query?: SystemUserListQuery): Promise<{ data: SystemUserSummary[]; meta: ApiListMeta }>
   patchUser(userId: string, input: PatchSystemUserInput): Promise<SystemUserSummary>
   getReports(query?: SystemReportListQuery): Promise<{ data: SystemReportSummary[]; meta: ApiListMeta }>

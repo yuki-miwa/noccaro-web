@@ -9,7 +9,9 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react'
+import { getAppStorage } from '../../utils/storage'
 import type {
+  SystemAdminPostItem,
   SystemAdminUser,
   SystemAuditLog,
   SystemDashboardMetrics,
@@ -21,6 +23,7 @@ import { createSystemAdminService } from '../services/createSystemAdminService'
 import type {
   AssignPrimaryOwnerInput,
   CreateSystemSpaceInput,
+  CreateOrUpdateSystemPostInput,
   PatchSystemSpaceInput,
   PatchSystemUserInput,
   ResolveSystemReportInput,
@@ -38,6 +41,8 @@ interface SystemAdminContextValue {
   user: SystemAdminUser | null
   dashboard: SystemDashboardMetrics | null
   spaces: SystemSpaceSummary[]
+  postSpaceId: string | null
+  posts: SystemAdminPostItem[]
   users: SystemUserSummary[]
   reports: SystemReportSummary[]
   auditLogs: SystemAuditLog[]
@@ -47,12 +52,20 @@ interface SystemAdminContextValue {
   createSpace: (input: CreateSystemSpaceInput) => Promise<void>
   updateSpace: (spaceId: string, input: PatchSystemSpaceInput) => Promise<void>
   assignPrimaryOwner: (spaceId: string, input: AssignPrimaryOwnerInput) => Promise<void>
+  selectPostSpace: (spaceId: string) => Promise<void>
+  createPost: (input: CreateOrUpdateSystemPostInput) => Promise<void>
+  updatePost: (postId: string, input: CreateOrUpdateSystemPostInput) => Promise<void>
+  publishPost: (postId: string, notifyMembers: boolean) => Promise<void>
+  archivePost: (postId: string) => Promise<void>
+  deletePost: (postId: string) => Promise<void>
   updateUser: (userId: string, input: PatchSystemUserInput) => Promise<void>
   resolveReport: (reportId: string, input: ResolveSystemReportInput) => Promise<void>
   resetMock: () => Promise<void>
 }
 
 const SystemAdminContext = createContext<SystemAdminContextValue | undefined>(undefined)
+const POST_SPACE_KEY = 'noccaro.system-admin.post-space-id'
+const storage = getAppStorage()
 
 function normalizeError(error: unknown): string {
   if (error instanceof SystemAdminApiError) {
@@ -75,6 +88,8 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<SystemAdminUser | null>(null)
   const [dashboard, setDashboard] = useState<SystemDashboardMetrics | null>(null)
   const [spaces, setSpaces] = useState<SystemSpaceSummary[]>([])
+  const [postSpaceId, setPostSpaceId] = useState<string | null>(storage.getItem(POST_SPACE_KEY))
+  const [posts, setPosts] = useState<SystemAdminPostItem[]>([])
   const [users, setUsers] = useState<SystemUserSummary[]>([])
   const [reports, setReports] = useState<SystemReportSummary[]>([])
   const [auditLogs, setAuditLogs] = useState<SystemAuditLog[]>([])
@@ -83,12 +98,14 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
     setUser(null)
     setDashboard(null)
     setSpaces([])
+    setPostSpaceId(null)
+    setPosts([])
     setUsers([])
     setReports([])
     setAuditLogs([])
   }, [])
 
-  const bootstrap = useCallback(async () => {
+  const bootstrap = useCallback(async (requestedPostSpaceId?: string | null) => {
     const service = serviceRef.current
     setLoading(true)
     setError(null)
@@ -115,6 +132,26 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       setUsers(userResult.data)
       setReports(reportResult.data)
       setAuditLogs(auditResult.data)
+      const preferredPostSpaceId = requestedPostSpaceId ?? storage.getItem(POST_SPACE_KEY) ?? null
+      const nextPostSpaceId =
+        (preferredPostSpaceId && spaceResult.data.some((item) => item.space.id === preferredPostSpaceId)
+          ? preferredPostSpaceId
+          : null) ??
+        spaceResult.data[0]?.space.id ??
+        null
+
+      setPostSpaceId(nextPostSpaceId)
+
+      if (nextPostSpaceId) {
+        storage.setItem(POST_SPACE_KEY, nextPostSpaceId)
+        const postResult = await service.getSpacePosts(nextPostSpaceId, {
+          category: 'operation',
+          limit: 100,
+        })
+        setPosts(postResult.data)
+      } else {
+        setPosts([])
+      }
       setReady(true)
     } catch (caughtError) {
       clearState()
@@ -151,6 +188,8 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       user,
       dashboard,
       spaces,
+      postSpaceId,
+      posts,
       users,
       reports,
       auditLogs,
@@ -163,11 +202,12 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       logout: async () => {
         await runAction(async () => {
           await serviceRef.current.logout()
+          storage.removeItem(POST_SPACE_KEY)
           clearState()
         })
       },
       refresh: async () => {
-        await bootstrap()
+        await bootstrap(postSpaceId)
       },
       createSpace: async (input) => {
         await runAction(async () => {
@@ -184,31 +224,71 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       assignPrimaryOwner: async (spaceId, input) => {
         await runAction(async () => {
           await serviceRef.current.assignPrimaryOwner(spaceId, input)
-          await bootstrap()
+          await bootstrap(postSpaceId)
+        })
+      },
+      selectPostSpace: async (spaceId) => {
+        await runAction(async () => {
+          storage.setItem(POST_SPACE_KEY, spaceId)
+          setPostSpaceId(spaceId)
+          await bootstrap(spaceId)
+        })
+      },
+      createPost: async (input) => {
+        if (!postSpaceId) {
+          return
+        }
+        await runAction(async () => {
+          await serviceRef.current.createSpacePost(postSpaceId, input)
+          await bootstrap(postSpaceId)
+        })
+      },
+      updatePost: async (postId, input) => {
+        await runAction(async () => {
+          await serviceRef.current.updateSpacePost(postId, input)
+          await bootstrap(postSpaceId)
+        })
+      },
+      publishPost: async (postId, notifyMembers) => {
+        await runAction(async () => {
+          await serviceRef.current.publishSpacePost(postId, notifyMembers)
+          await bootstrap(postSpaceId)
+        })
+      },
+      archivePost: async (postId) => {
+        await runAction(async () => {
+          await serviceRef.current.archiveSpacePost(postId)
+          await bootstrap(postSpaceId)
+        })
+      },
+      deletePost: async (postId) => {
+        await runAction(async () => {
+          await serviceRef.current.deleteSpacePost(postId)
+          await bootstrap(postSpaceId)
         })
       },
       updateUser: async (userId, input) => {
         await runAction(async () => {
           await serviceRef.current.patchUser(userId, input)
-          await bootstrap()
+          await bootstrap(postSpaceId)
         })
       },
       resolveReport: async (reportId, input) => {
         await runAction(async () => {
           await serviceRef.current.resolveReport(reportId, input)
-          await bootstrap()
+          await bootstrap(postSpaceId)
         })
       },
       resetMock: async () => {
         await runAction(async () => {
           if (serviceRef.current.resetMock) {
             await serviceRef.current.resetMock()
-            await bootstrap()
+            await bootstrap(postSpaceId)
           }
         })
       },
     }),
-    [auditLogs, bootstrap, clearState, dashboard, error, loading, ready, reports, spaces, user, users],
+    [auditLogs, bootstrap, clearState, dashboard, error, loading, postSpaceId, posts, ready, reports, spaces, user, users],
   )
 
   return <SystemAdminContext.Provider value={value}>{children}</SystemAdminContext.Provider>

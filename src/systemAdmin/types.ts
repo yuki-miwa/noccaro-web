@@ -2,6 +2,7 @@ import type {
   ApiListMeta,
   JoinPolicy,
   MembershipStatus,
+  PostResource,
   ReportReasonType,
   ReportStatus,
   ResolutionType,
@@ -108,6 +109,11 @@ export interface SystemAuditLog {
   createdAt: string
 }
 
+export interface SystemAdminPostItem {
+  post: PostResource
+  createdBySystemAdmin: SystemAdminUser | null
+}
+
 export interface SystemAdminAuthResult {
   token: string
   user: SystemAdminUser
@@ -134,5 +140,10 @@ export interface SystemReportListResult {
 
 export interface SystemAuditLogListResult {
   data: SystemAuditLog[]
+  meta: ApiListMeta
+}
+
+export interface SystemPostListResult {
+  data: SystemAdminPostItem[]
   meta: ApiListMeta
 }
