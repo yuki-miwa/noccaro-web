@@ -135,6 +135,8 @@ npm run build
 - どちらも `all_members` / `targeted_users` を切り替えられます
 - `targeted_users` の場合は対象アカウントを複数指定できます
 - 指定配信では通知は無効化されます
+- system admin の `operation` では「全稼働スペース」を選び、active な全スペースへ同じ投稿を一括作成できます
+- 「全稼働スペース」選択時は `targeted_users` は使わず、`all_members` のみを許可します
 - post object は `category`, `audienceType`, `recipientUserIds`, `isRead`, `readAt`, `targetedToMe` を受け取れる前提です
 
 ## 既知事項

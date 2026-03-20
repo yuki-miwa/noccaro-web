@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { PostAudienceType } from '../../types/api'
 import { formatIso, postAudienceLabel, postStatusLabel } from '../../utils/format'
 import { useSystemAdminContext } from '../context/SystemAdminContext'
+import { ALL_SPACES_SCOPE, getBroadcastTargetSpaceIds, isAllSpacesScope } from '../utils/postScope'
 
 interface PostFormState {
   title: string
@@ -37,15 +38,26 @@ export function SystemPostsPage() {
   } = useSystemAdminContext()
   const [form, setForm] = useState<PostFormState>(initialForm)
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const isAllSpacesSelected = isAllSpacesScope(postSpaceId)
+  const activeSpaceCount = useMemo(() => getBroadcastTargetSpaceIds(spaces).length, [spaces])
 
   const selectedSpace = useMemo(
-    () => spaces.find((item) => item.space.id === postSpaceId) ?? null,
-    [postSpaceId, spaces],
+    () => (isAllSpacesSelected ? null : spaces.find((item) => item.space.id === postSpaceId) ?? null),
+    [isAllSpacesSelected, postSpaceId, spaces],
+  )
+
+  const spaceNameMap = useMemo(
+    () => Object.fromEntries(spaces.map((item) => [item.space.id, item.space.name])),
+    [spaces],
   )
 
   const recipientOptions = useMemo(
-    () =>
-      users
+    () => {
+      if (isAllSpacesSelected) {
+        return []
+      }
+
+      return users
         .filter((item) =>
           item.memberships.some((membership) => membership.spaceId === postSpaceId && membership.status === 'active'),
         )
@@ -59,8 +71,9 @@ export function SystemPostsPage() {
             detail: `${item.user.email} / ${membership?.role === 'guest' ? 'ゲスト' : '運営側'}`,
           }
         })
-        .sort((left, right) => left.name.localeCompare(right.name, 'ja')),
-    [postSpaceId, users],
+        .sort((left, right) => left.name.localeCompare(right.name, 'ja'))
+    },
+    [isAllSpacesSelected, postSpaceId, users],
   )
 
   const recipientMap = useMemo(
@@ -78,6 +91,10 @@ export function SystemPostsPage() {
   }
 
   const setAudienceType = (audienceType: PostAudienceType) => {
+    if (isAllSpacesSelected && audienceType === 'targeted_users') {
+      return
+    }
+
     setForm((current) => ({
       ...current,
       audienceType,
@@ -91,13 +108,30 @@ export function SystemPostsPage() {
     setForm(initialForm)
   }
 
+  const handlePostScopeChange = (spaceId: string) => {
+    if (editingPostId && isAllSpacesScope(spaceId)) {
+      setEditingPostId(null)
+    }
+
+    if (isAllSpacesScope(spaceId)) {
+      setForm((current) => ({
+        ...current,
+        audienceType: 'all_members',
+        recipientUserIds: [],
+        notifyMembers: current.notifyMembers,
+      }))
+    }
+
+    void selectPostSpace(spaceId)
+  }
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!postSpaceId || !form.title.trim() || !form.body.trim()) {
       return
     }
 
-    if (form.audienceType === 'targeted_users' && form.recipientUserIds.length === 0) {
+    if (!isAllSpacesSelected && form.audienceType === 'targeted_users' && form.recipientUserIds.length === 0) {
       return
     }
 
@@ -141,16 +175,19 @@ export function SystemPostsPage() {
           <span>
             {editingPostId
               ? `PATCH /api/v1/system-admin/posts/${editingPostId}`
-              : postSpaceId
-                ? `POST /api/v1/system-admin/spaces/${postSpaceId}/posts`
+              : isAllSpacesSelected
+                ? `POST /api/v1/system-admin/spaces/{spaceId}/posts × ${activeSpaceCount}件`
+                : postSpaceId
+                  ? `POST /api/v1/system-admin/spaces/${postSpaceId}/posts`
                 : '投稿先スペースを選択してください'}
           </span>
         </div>
         <form className="post-form" onSubmit={(event) => void submit(event)}>
           <label>
             <span>投稿先スペース</span>
-            <select value={postSpaceId ?? ''} onChange={(event) => void selectPostSpace(event.target.value)}>
+            <select value={postSpaceId ?? ''} onChange={(event) => handlePostScopeChange(event.target.value)}>
               {spaces.length === 0 ? <option value="">スペースがありません</option> : null}
+              {spaces.length > 0 ? <option value={ALL_SPACES_SCOPE}>全稼働スペース</option> : null}
               {spaces.map((item) => (
                 <option key={item.space.id} value={item.space.id}>
                   {item.space.name}
@@ -158,6 +195,11 @@ export function SystemPostsPage() {
               ))}
             </select>
           </label>
+          {isAllSpacesSelected ? (
+            <p className="field-hint settings-form-full">
+              全稼働スペースを選ぶと、同じ運営お知らせを active な各スペースへ 1 件ずつ作成します。指定アカウント向けは使えません。
+            </p>
+          ) : null}
           <label>
             <span>タイトル</span>
             <input
@@ -196,7 +238,9 @@ export function SystemPostsPage() {
             <span>配信先</span>
             <select value={form.audienceType} onChange={(event) => setAudienceType(event.target.value as PostAudienceType)}>
               <option value="all_members">全メンバー向け</option>
-              <option value="targeted_users">指定アカウント向け</option>
+              <option value="targeted_users" disabled={isAllSpacesSelected}>
+                指定アカウント向け
+              </option>
             </select>
           </label>
           <label className="check-row">
@@ -208,7 +252,7 @@ export function SystemPostsPage() {
             />
             <span>{form.audienceType === 'targeted_users' ? '指定アカウント向けでは通知できません' : 'メンバーに通知する'}</span>
           </label>
-          {form.audienceType === 'targeted_users' ? (
+          {form.audienceType === 'targeted_users' && !isAllSpacesSelected ? (
             <div className="recipient-panel settings-form-full">
               <div className="recipient-panel-header">
                 <strong>配信先アカウント</strong>
@@ -244,7 +288,7 @@ export function SystemPostsPage() {
                 !postSpaceId ||
                 !form.title.trim() ||
                 !form.body.trim() ||
-                (form.audienceType === 'targeted_users' && form.recipientUserIds.length === 0)
+                (!isAllSpacesSelected && form.audienceType === 'targeted_users' && form.recipientUserIds.length === 0)
               }
             >
               {editingPostId ? '変更を保存' : '投稿を作成'}
@@ -261,10 +305,18 @@ export function SystemPostsPage() {
       <section className="panel">
         <div className="panel-header">
           <h2>運営お知らせ一覧</h2>
-          <span>{selectedSpace ? `${selectedSpace.space.name} / ${posts.length}件` : `${posts.length}件`}</span>
+          <span>
+            {isAllSpacesSelected
+              ? `全稼働スペース横断 / ${posts.length}件`
+              : selectedSpace
+                ? `${selectedSpace.space.name} / ${posts.length}件`
+                : `${posts.length}件`}
+          </span>
         </div>
         {posts.length === 0 ? (
-          <p className="empty-text">このスペースの運営お知らせはまだありません。</p>
+          <p className="empty-text">
+            {isAllSpacesSelected ? '全稼働スペース向けの運営お知らせはまだありません。' : 'このスペースの運営お知らせはまだありません。'}
+          </p>
         ) : (
           <div className="stack-list">
             {posts.map((item) => {
@@ -285,7 +337,7 @@ export function SystemPostsPage() {
                   <dl className="entry-meta-list">
                     <div>
                       <dt>投稿先</dt>
-                      <dd>{selectedSpace?.space.name ?? post.spaceId}</dd>
+                      <dd>{spaceNameMap[post.spaceId] ?? post.spaceId}</dd>
                     </div>
                     <div>
                       <dt>配信先</dt>

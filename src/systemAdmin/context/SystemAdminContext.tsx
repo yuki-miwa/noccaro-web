@@ -31,6 +31,12 @@ import type {
 } from '../services/systemAdminService'
 import { ApiClientError } from '../../services/httpClient'
 import { SystemAdminApiError } from '../services/mockSystemAdminService'
+import {
+  getBroadcastTargetSpaceIds,
+  isAllSpacesScope,
+  mergePostItemsByUpdatedAt,
+  resolvePostScopeSelection,
+} from '../utils/postScope'
 
 interface SystemAdminContextValue {
   serviceMode: 'mock' | 'real'
@@ -133,22 +139,34 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       setReports(reportResult.data)
       setAuditLogs(auditResult.data)
       const preferredPostSpaceId = requestedPostSpaceId ?? storage.getItem(POST_SPACE_KEY) ?? null
-      const nextPostSpaceId =
-        (preferredPostSpaceId && spaceResult.data.some((item) => item.space.id === preferredPostSpaceId)
-          ? preferredPostSpaceId
-          : null) ??
-        spaceResult.data[0]?.space.id ??
-        null
+      const nextPostSpaceId = resolvePostScopeSelection(preferredPostSpaceId, spaceResult.data)
 
       setPostSpaceId(nextPostSpaceId)
 
       if (nextPostSpaceId) {
         storage.setItem(POST_SPACE_KEY, nextPostSpaceId)
-        const postResult = await service.getSpacePosts(nextPostSpaceId, {
-          category: 'operation',
-          limit: 100,
-        })
-        setPosts(postResult.data)
+        if (isAllSpacesScope(nextPostSpaceId)) {
+          const targetSpaceIds = getBroadcastTargetSpaceIds(spaceResult.data)
+          if (targetSpaceIds.length === 0) {
+            setPosts([])
+          } else {
+            const postResults = await Promise.all(
+              targetSpaceIds.map((spaceId) =>
+                service.getSpacePosts(spaceId, {
+                  category: 'operation',
+                  limit: 100,
+                }),
+              ),
+            )
+            setPosts(mergePostItemsByUpdatedAt(postResults.map((result) => result.data)))
+          }
+        } else {
+          const postResult = await service.getSpacePosts(nextPostSpaceId, {
+            category: 'operation',
+            limit: 100,
+          })
+          setPosts(postResult.data)
+        }
       } else {
         setPosts([])
       }
@@ -239,7 +257,20 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
           return
         }
         await runAction(async () => {
-          await serviceRef.current.createSpacePost(postSpaceId, input)
+          if (isAllSpacesScope(postSpaceId)) {
+            if (input.audienceType === 'targeted_users') {
+              throw new Error('全稼働スペースへの一括投稿では、指定アカウント向けを利用できません。')
+            }
+
+            const targetSpaceIds = getBroadcastTargetSpaceIds(spaces)
+            if (targetSpaceIds.length === 0) {
+              throw new Error('投稿先となる稼働中スペースがありません。')
+            }
+
+            await Promise.all(targetSpaceIds.map((spaceId) => serviceRef.current.createSpacePost(spaceId, input)))
+          } else {
+            await serviceRef.current.createSpacePost(postSpaceId, input)
+          }
           await bootstrap(postSpaceId)
         })
       },
