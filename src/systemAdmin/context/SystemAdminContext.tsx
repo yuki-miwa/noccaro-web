@@ -16,6 +16,7 @@ import type {
   SystemAuditLog,
   SystemDashboardMetrics,
   SystemReportSummary,
+  SystemSpaceCreationRequestSummary,
   SystemSpaceSummary,
   SystemUserSummary,
 } from '../types'
@@ -26,6 +27,7 @@ import type {
   CreateOrUpdateSystemPostInput,
   PatchSystemSpaceInput,
   PatchSystemUserInput,
+  ReviewSpaceCreationRequestInput,
   ResolveSystemReportInput,
   SystemAdminService,
 } from '../services/systemAdminService'
@@ -47,6 +49,7 @@ interface SystemAdminContextValue {
   user: SystemAdminUser | null
   dashboard: SystemDashboardMetrics | null
   spaces: SystemSpaceSummary[]
+  creationRequests: SystemSpaceCreationRequestSummary[]
   postSpaceId: string | null
   posts: SystemAdminPostItem[]
   users: SystemUserSummary[]
@@ -55,6 +58,8 @@ interface SystemAdminContextValue {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<void>
+  approveSpaceCreationRequest: (requestId: string, input?: ReviewSpaceCreationRequestInput) => Promise<void>
+  rejectSpaceCreationRequest: (requestId: string, input?: ReviewSpaceCreationRequestInput) => Promise<void>
   createSpace: (input: CreateSystemSpaceInput) => Promise<void>
   updateSpace: (spaceId: string, input: PatchSystemSpaceInput) => Promise<void>
   assignPrimaryOwner: (spaceId: string, input: AssignPrimaryOwnerInput) => Promise<void>
@@ -94,6 +99,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<SystemAdminUser | null>(null)
   const [dashboard, setDashboard] = useState<SystemDashboardMetrics | null>(null)
   const [spaces, setSpaces] = useState<SystemSpaceSummary[]>([])
+  const [creationRequests, setCreationRequests] = useState<SystemSpaceCreationRequestSummary[]>([])
   const [postSpaceId, setPostSpaceId] = useState<string | null>(storage.getItem(POST_SPACE_KEY))
   const [posts, setPosts] = useState<SystemAdminPostItem[]>([])
   const [users, setUsers] = useState<SystemUserSummary[]>([])
@@ -104,6 +110,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
     setUser(null)
     setDashboard(null)
     setSpaces([])
+    setCreationRequests([])
     setPostSpaceId(null)
     setPosts([])
     setUsers([])
@@ -123,10 +130,11 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
         return
       }
 
-      const [meResult, dashboardResult, spaceResult, userResult, reportResult, auditResult] = await Promise.all([
+      const [meResult, dashboardResult, spaceResult, creationRequestResult, userResult, reportResult, auditResult] = await Promise.all([
         service.getMe(),
         service.getDashboard(),
         service.getSpaces({ limit: 100 }),
+        service.getSpaceCreationRequests({ status: 'all', limit: 100 }),
         service.getUsers({ limit: 100 }),
         service.getReports({ limit: 100 }),
         service.getAuditLogs(),
@@ -135,6 +143,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       setUser(meResult.user)
       setDashboard(dashboardResult)
       setSpaces(spaceResult.data)
+      setCreationRequests(creationRequestResult.data)
       setUsers(userResult.data)
       setReports(reportResult.data)
       setAuditLogs(auditResult.data)
@@ -206,6 +215,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       user,
       dashboard,
       spaces,
+      creationRequests,
       postSpaceId,
       posts,
       users,
@@ -226,6 +236,18 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       },
       refresh: async () => {
         await bootstrap(postSpaceId)
+      },
+      approveSpaceCreationRequest: async (requestId, input) => {
+        await runAction(async () => {
+          await serviceRef.current.approveSpaceCreationRequest(requestId, input)
+          await bootstrap(postSpaceId)
+        })
+      },
+      rejectSpaceCreationRequest: async (requestId, input) => {
+        await runAction(async () => {
+          await serviceRef.current.rejectSpaceCreationRequest(requestId, input)
+          await bootstrap(postSpaceId)
+        })
       },
       createSpace: async (input) => {
         await runAction(async () => {
@@ -319,7 +341,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
         })
       },
     }),
-    [auditLogs, bootstrap, clearState, dashboard, error, loading, postSpaceId, posts, ready, reports, spaces, user, users],
+    [auditLogs, bootstrap, clearState, creationRequests, dashboard, error, loading, postSpaceId, posts, ready, reports, spaces, user, users],
   )
 
   return <SystemAdminContext.Provider value={value}>{children}</SystemAdminContext.Provider>

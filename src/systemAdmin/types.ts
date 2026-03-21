@@ -65,6 +65,32 @@ export interface SystemSpaceSummary {
   metrics: SystemSpaceMetrics
 }
 
+export type SystemSpaceCreationRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export interface SystemSpaceCreationRequestResource {
+  id: string
+  spaceName: string
+  spaceCode: string
+  joinPolicy: JoinPolicy
+  status: SystemSpaceCreationRequestStatus
+  requestType: 'space_creation'
+  createdSpaceId: string | null
+  rejectionVisibleUntil: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SystemSpaceCreationRequestSummary {
+  request: SystemSpaceCreationRequestResource
+  requester: UserResource | null
+  futurePrimaryOwner: UserResource | null
+  createdSpace: Pick<SystemSpaceResource, 'id' | 'code' | 'name'> | null
+  reviewedBy: SystemAdminUser | null
+  reviewedAt: string | null
+  approvedAt: string | null
+  rejectedAt: string | null
+}
+
 export interface SystemUserMembershipSummary {
   membershipId: string
   spaceId: string
@@ -103,7 +129,7 @@ export interface SystemReportSummary {
 export interface SystemAuditLog {
   id: string
   action: string
-  entityType: 'space' | 'user' | 'membership' | 'report'
+  entityType: 'space' | 'user' | 'membership' | 'report' | 'space_creation_request'
   entityId: string
   message: string
   createdAt: string
@@ -125,6 +151,11 @@ export interface SystemAdminMeResult {
 
 export interface SystemSpaceListResult {
   data: SystemSpaceSummary[]
+  meta: ApiListMeta
+}
+
+export interface SystemSpaceCreationRequestListResult {
+  data: SystemSpaceCreationRequestSummary[]
   meta: ApiListMeta
 }
 

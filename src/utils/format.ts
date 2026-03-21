@@ -10,7 +10,7 @@ import type {
   SpaceRole,
   WhisperStatus,
 } from '../types/api'
-import type { SystemSpaceStatus } from '../systemAdmin/types'
+import type { SystemSpaceCreationRequestStatus, SystemSpaceStatus } from '../systemAdmin/types'
 
 export function formatIso(value: string | null): string {
   if (!value) {
@@ -198,6 +198,19 @@ export function systemSpaceStatusLabel(status: SystemSpaceStatus): string {
       return 'アーカイブ'
     case 'deleted':
       return '削除済み'
+    default:
+      return status
+  }
+}
+
+export function spaceCreationRequestStatusLabel(status: SystemSpaceCreationRequestStatus): string {
+  switch (status) {
+    case 'pending':
+      return '承認待ち'
+    case 'approved':
+      return '承認済み'
+    case 'rejected':
+      return '棄却'
     default:
       return status
   }

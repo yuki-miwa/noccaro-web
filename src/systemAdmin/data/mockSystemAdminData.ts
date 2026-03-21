@@ -4,6 +4,7 @@ import type {
   SystemAdminUser,
   SystemAuditLog,
   SystemReportSummary,
+  SystemSpaceCreationRequestSummary,
   SystemSpaceOwnerSummary,
   SystemSpaceResource,
   SystemUserSummary,
@@ -19,6 +20,7 @@ export interface MockSystemAdminState {
   admins: SystemAdminUser[]
   users: SystemUserSummary[]
   spaces: MockSystemAdminSpaceRecord[]
+  creationRequests: SystemSpaceCreationRequestSummary[]
   posts: SystemAdminPostItem[]
   reports: SystemReportSummary[]
   auditLogs: SystemAuditLog[]
@@ -27,6 +29,7 @@ export interface MockSystemAdminState {
   nextPostSequence: number
   nextReportSequence: number
   nextAuditSequence: number
+  nextCreationRequestSequence: number
 }
 
 function userResource(input: Partial<UserResource> & Pick<UserResource, 'id' | 'email' | 'displayName'>): UserResource {
@@ -311,6 +314,51 @@ export function createInitialSystemAdminState(): MockSystemAdminState {
     },
   ]
 
+  const creationRequests: SystemSpaceCreationRequestSummary[] = [
+    {
+      request: {
+        id: 'creation_request_001',
+        spaceName: 'Noccaro Osaka',
+        spaceCode: 'OSAKA2026',
+        joinPolicy: 'approval_required',
+        status: 'pending',
+        requestType: 'space_creation',
+        createdSpaceId: null,
+        rejectionVisibleUntil: null,
+        createdAt: '2026-03-20T02:15:00Z',
+        updatedAt: '2026-03-20T02:15:00Z',
+      },
+      requester: users[5].user,
+      futurePrimaryOwner: users[5].user,
+      createdSpace: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      approvedAt: null,
+      rejectedAt: null,
+    },
+    {
+      request: {
+        id: 'creation_request_002',
+        spaceName: 'Noccaro Fukuoka',
+        spaceCode: 'FUKUOKA1',
+        joinPolicy: 'auto_approve',
+        status: 'rejected',
+        requestType: 'space_creation',
+        createdSpaceId: null,
+        rejectionVisibleUntil: '2026-03-23T10:00:00Z',
+        createdAt: '2026-03-19T08:00:00Z',
+        updatedAt: '2026-03-20T10:00:00Z',
+      },
+      requester: users[2].user,
+      futurePrimaryOwner: users[2].user,
+      createdSpace: null,
+      reviewedBy: admins[0],
+      reviewedAt: '2026-03-20T10:00:00Z',
+      approvedAt: null,
+      rejectedAt: '2026-03-20T10:00:00Z',
+    },
+  ]
+
   const posts: SystemAdminPostItem[] = [
     {
       post: {
@@ -396,6 +444,7 @@ export function createInitialSystemAdminState(): MockSystemAdminState {
     admins,
     users,
     spaces,
+    creationRequests,
     posts,
     reports,
     auditLogs,
@@ -404,5 +453,6 @@ export function createInitialSystemAdminState(): MockSystemAdminState {
     nextPostSequence: 3,
     nextReportSequence: 4,
     nextAuditSequence: 4,
+    nextCreationRequestSequence: 3,
   }
 }

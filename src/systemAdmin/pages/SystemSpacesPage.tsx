@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react'
-import { formatIso, joinPolicyLabel, systemSpaceStatusLabel, userStatusLabel } from '../../utils/format'
+import {
+  formatIso,
+  joinPolicyLabel,
+  spaceCreationRequestStatusLabel,
+  systemSpaceStatusLabel,
+  userStatusLabel,
+} from '../../utils/format'
 import { useSystemAdminContext } from '../context/SystemAdminContext'
-import type { SystemSpaceStatus } from '../types'
+import type { SystemSpaceCreationRequestStatus, SystemSpaceStatus } from '../types'
 
 interface CreateSpaceFormState {
   name: string
@@ -37,14 +43,43 @@ const statusFilters: Array<{ label: string; value: 'all' | SystemSpaceStatus }> 
   { label: '削除済み', value: 'deleted' },
 ]
 
+const requestStatusFilters: Array<{ label: string; value: 'all' | SystemSpaceCreationRequestStatus }> = [
+  { label: 'すべて', value: 'all' },
+  { label: '承認待ち', value: 'pending' },
+  { label: '承認済み', value: 'approved' },
+  { label: '棄却', value: 'rejected' },
+]
+
 export function SystemSpacesPage() {
-  const { assignPrimaryOwner, createSpace, loading, spaces, updateSpace, users } = useSystemAdminContext()
+  const {
+    approveSpaceCreationRequest,
+    assignPrimaryOwner,
+    createSpace,
+    creationRequests,
+    loading,
+    rejectSpaceCreationRequest,
+    spaces,
+    updateSpace,
+    users,
+  } = useSystemAdminContext()
   const [form, setForm] = useState<CreateSpaceFormState>(initialForm)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | SystemSpaceStatus>('all')
+  const [requestSearch, setRequestSearch] = useState('')
+  const [requestStatusFilter, setRequestStatusFilter] = useState<'all' | SystemSpaceCreationRequestStatus>('pending')
   const [ownerSelections, setOwnerSelections] = useState<Record<string, string>>({})
 
   const eligibleUsers = users.filter((item) => item.user.status === 'active')
+
+  const filteredCreationRequests = useMemo(() => {
+    const normalized = requestSearch.trim().toLowerCase()
+    return creationRequests.filter((item) => {
+      const matchesStatus = requestStatusFilter === 'all' ? true : item.request.status === requestStatusFilter
+      const haystack = `${item.request.spaceName} ${item.request.spaceCode} ${item.requester?.displayName ?? ''} ${item.requester?.email ?? ''}`.toLowerCase()
+      const matchesSearch = normalized ? haystack.includes(normalized) : true
+      return matchesStatus && matchesSearch
+    })
+  }, [creationRequests, requestSearch, requestStatusFilter])
 
   const filteredSpaces = useMemo(() => {
     const normalized = search.trim().toLowerCase()
@@ -80,6 +115,96 @@ export function SystemSpacesPage() {
 
   return (
     <div className="page-stack">
+      <section className="panel">
+        <div className="panel-header">
+          <h2>スペース作成申請レビュー</h2>
+          <span>{filteredCreationRequests.length}件</span>
+        </div>
+
+        <div className="members-toolbar">
+          <div className="filter-group" role="tablist" aria-label="作成申請状態フィルター">
+            {requestStatusFilters.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                className={requestStatusFilter === filter.value ? 'chip chip-active' : 'chip'}
+                onClick={() => setRequestStatusFilter(filter.value)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          <input
+            className="search-input"
+            placeholder="スペース名・コード・申請者で検索"
+            value={requestSearch}
+            onChange={(event) => setRequestSearch(event.target.value)}
+          />
+        </div>
+
+        <div className="table-scroll">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>申請内容</th>
+                <th>申請者</th>
+                <th>状態</th>
+                <th>申請日</th>
+                <th>審査情報</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCreationRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="table-empty">
+                    表示できるスペース作成申請はありません。
+                  </td>
+                </tr>
+              ) : (
+                filteredCreationRequests.map((item) => (
+                  <tr key={item.request.id}>
+                    <td>
+                      <strong>{item.request.spaceName}</strong>
+                      <div className="row-subtext">コード: {item.request.spaceCode}</div>
+                      <div className="row-subtext">参加方式: {joinPolicyLabel(item.request.joinPolicy)}</div>
+                      {item.createdSpace ? <div className="row-subtext">生成済み: {item.createdSpace.name}</div> : null}
+                    </td>
+                    <td>
+                      <div>{item.requester?.displayName ?? '不明なユーザー'}</div>
+                      <div className="row-subtext">{item.requester?.email ?? '-'}</div>
+                    </td>
+                    <td>{spaceCreationRequestStatusLabel(item.request.status)}</td>
+                    <td>{formatIso(item.request.createdAt)}</td>
+                    <td>
+                      <div className="row-subtext">審査者: {item.reviewedBy?.displayName ?? '-'}</div>
+                      <div className="row-subtext">審査日時: {formatIso(item.reviewedAt)}</div>
+                      {item.request.status === 'rejected' ? (
+                        <div className="row-subtext">公開終了: {formatIso(item.request.rejectionVisibleUntil)}</div>
+                      ) : null}
+                    </td>
+                    <td>
+                      {item.request.status === 'pending' ? (
+                        <div className="actions-grid">
+                          <button type="button" onClick={() => void approveSpaceCreationRequest(item.request.id)} disabled={loading}>
+                            承認してスペース作成
+                          </button>
+                          <button type="button" onClick={() => void rejectSpaceCreationRequest(item.request.id)} disabled={loading}>
+                            棄却
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="row-subtext">処理済み</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="panel">
         <div className="panel-header">
           <h2>新規スペース作成</h2>

@@ -8,6 +8,7 @@ import type {
   SystemAuditLog,
   SystemDashboardMetrics,
   SystemReportSummary,
+  SystemSpaceCreationRequestSummary,
   SystemSpaceResource,
   SystemSpaceSummary,
   SystemUserSummary,
@@ -18,11 +19,13 @@ import type {
   CreateOrUpdateSystemPostInput,
   PatchSystemSpaceInput,
   PatchSystemUserInput,
+  ReviewSpaceCreationRequestInput,
   ResolveSystemReportInput,
   SystemAdminLoginInput,
   SystemAdminService,
   SystemPostListQuery,
   SystemReportListQuery,
+  SystemSpaceCreationRequestListQuery,
   SystemSpaceListQuery,
   SystemUserListQuery,
 } from './systemAdminService'
@@ -41,6 +44,10 @@ function nowIso(): string {
 
 function normalizeSearch(value?: string): string {
   return value?.trim().toLowerCase() ?? ''
+}
+
+function normalizeSpaceCode(value: string): string {
+  return value.trim().toUpperCase()
 }
 
 function listMeta<T>(items: T[], limit?: number): ApiListMeta {
@@ -129,6 +136,144 @@ export class MockSystemAdminService implements SystemAdminService {
     }
   }
 
+  async getSpaceCreationRequests(
+    query?: SystemSpaceCreationRequestListQuery,
+  ): Promise<{ data: SystemSpaceCreationRequestSummary[]; meta: ApiListMeta }> {
+    this.requireCurrentAdmin()
+    const search = normalizeSearch(query?.search)
+    const items = this.state.creationRequests
+      .filter((item) => (query?.status && query.status !== 'all' ? item.request.status === query.status : true))
+      .filter((item) => {
+        if (!search) {
+          return true
+        }
+        const haystack = `${item.request.spaceName} ${item.request.spaceCode} ${item.requester?.displayName ?? ''} ${item.requester?.email ?? ''}`.toLowerCase()
+        return haystack.includes(search)
+      })
+      .sort((left, right) => right.request.updatedAt.localeCompare(left.request.updatedAt))
+      .map((item) => cloneValue(item))
+
+    return {
+      data: items,
+      meta: listMeta(items, query?.limit),
+    }
+  }
+
+  async approveSpaceCreationRequest(
+    requestId: string,
+    input?: ReviewSpaceCreationRequestInput,
+  ): Promise<SystemSpaceCreationRequestSummary> {
+    this.requireCurrentAdmin()
+    const request = this.findCreationRequest(requestId)
+    if (request.request.status !== 'pending') {
+      throw new SystemAdminApiError('CONFLICT', 'この作成申請はすでに処理済みです。')
+    }
+
+    const requester = request.requester
+    if (!requester || requester.status !== 'active') {
+      throw new SystemAdminApiError('CONFLICT', '申請者が無効なため承認できません。')
+    }
+
+    const spaceCode = normalizeSpaceCode(request.request.spaceCode)
+    if (this.state.spaces.some((item) => item.space.code === spaceCode)) {
+      throw new SystemAdminApiError('SPACE_CODE_ALREADY_TAKEN', 'このスペースコードはすでに使用されています。')
+    }
+
+    const spaceId = `space_${String(this.state.nextSpaceSequence).padStart(3, '0')}`
+    this.state.nextSpaceSequence += 1
+    const membershipId = `membership_space_${String(this.state.nextMembershipSequence).padStart(3, '0')}_primary`
+    this.state.nextMembershipSequence += 1
+    const createdAt = nowIso()
+
+    const space: SystemSpaceResource = {
+      id: spaceId,
+      code: spaceCode,
+      name: request.request.spaceName,
+      description: '',
+      joinPolicy: request.request.joinPolicy,
+      status: 'active',
+      maxOwnerCount: 3,
+      whisperTtlMinutes: 180,
+      whisperMaxLength: 20,
+      locationGridMeters: 120,
+      locationJitterEnabled: true,
+      createdAt,
+    }
+
+    this.state.spaces.unshift({
+      space,
+      primaryOwner: {
+        membershipId,
+        userId: requester.id,
+        displayName: requester.displayName,
+        email: requester.email,
+      },
+    })
+
+    const requesterSummary = this.state.users.find((item) => item.user.id === requester.id)
+    requesterSummary?.memberships.unshift({
+      membershipId,
+      spaceId,
+      spaceName: space.name,
+      role: 'primary_owner',
+      status: 'active',
+    })
+
+    request.request.status = 'approved'
+    request.request.createdSpaceId = spaceId
+    request.request.updatedAt = createdAt
+    request.createdSpace = {
+      id: spaceId,
+      code: space.code,
+      name: space.name,
+    }
+    request.reviewedBy = this.requireCurrentAdmin()
+    request.reviewedAt = createdAt
+    request.approvedAt = createdAt
+    request.rejectedAt = null
+    request.request.rejectionVisibleUntil = null
+
+    this.addAuditLog(
+      'space_creation_request_approved',
+      'space_creation_request',
+      requestId,
+      `${request.request.spaceName} (${spaceCode}) の作成申請を承認しました。${input?.note ? ` (${input.note})` : ''}`,
+    )
+
+    return cloneValue(request)
+  }
+
+  async rejectSpaceCreationRequest(
+    requestId: string,
+    input?: ReviewSpaceCreationRequestInput,
+  ): Promise<SystemSpaceCreationRequestSummary> {
+    this.requireCurrentAdmin()
+    const request = this.findCreationRequest(requestId)
+    if (request.request.status !== 'pending') {
+      throw new SystemAdminApiError('CONFLICT', 'この作成申請はすでに処理済みです。')
+    }
+
+    const reviewedAt = nowIso()
+    const rejectionVisibleUntil = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+
+    request.request.status = 'rejected'
+    request.request.updatedAt = reviewedAt
+    request.request.rejectionVisibleUntil = rejectionVisibleUntil
+    request.reviewedBy = this.requireCurrentAdmin()
+    request.reviewedAt = reviewedAt
+    request.approvedAt = null
+    request.rejectedAt = reviewedAt
+
+    this.addAuditLog(
+      'space_creation_request_rejected',
+      'space_creation_request',
+      requestId,
+      `${request.request.spaceName} (${request.request.spaceCode}) の作成申請を棄却しました。${input?.note ? ` (${input.note})` : ''}`,
+    )
+
+    return cloneValue(request)
+  }
+
   async createSpace(input: CreateSystemSpaceInput): Promise<SystemSpaceSummary> {
     this.requireCurrentAdmin()
 
@@ -141,8 +286,14 @@ export class MockSystemAdminService implements SystemAdminService {
       throw new SystemAdminApiError('CONFLICT', 'ロック中または無効なユーザーは主オーナーに設定できません。')
     }
 
-    if (this.state.spaces.some((item) => item.space.code === input.spaceCode)) {
-      throw new SystemAdminApiError('CONFLICT', '同じスペースコードは使用できません。')
+    const normalizedSpaceCode = normalizeSpaceCode(input.spaceCode)
+
+    if (this.state.spaces.some((item) => item.space.code === normalizedSpaceCode)) {
+      throw new SystemAdminApiError('SPACE_CODE_ALREADY_TAKEN', '同じスペースコードは使用できません。')
+    }
+
+    if (this.state.creationRequests.some((item) => item.request.status === 'pending' && item.request.spaceCode === normalizedSpaceCode)) {
+      throw new SystemAdminApiError('SPACE_CODE_ALREADY_RESERVED', '同じスペースコードは申請中のため使用できません。')
     }
 
     const spaceId = `space_${String(this.state.nextSpaceSequence).padStart(3, '0')}`
@@ -154,7 +305,7 @@ export class MockSystemAdminService implements SystemAdminService {
     const createdAt = nowIso()
     const space: SystemSpaceResource = {
       id: spaceId,
-      code: input.spaceCode.trim(),
+      code: normalizedSpaceCode,
       name: input.name.trim(),
       description: input.description?.trim() || null,
       joinPolicy: input.joinPolicy,
@@ -196,7 +347,20 @@ export class MockSystemAdminService implements SystemAdminService {
 
     record.space.name = input.name?.trim() || record.space.name
     record.space.description = input.description === undefined ? record.space.description : input.description?.trim() || null
-    record.space.code = input.spaceCode?.trim() || record.space.code
+    if (input.spaceCode) {
+      const normalizedSpaceCode = normalizeSpaceCode(input.spaceCode)
+      if (this.state.spaces.some((item) => item.space.id !== spaceId && item.space.code === normalizedSpaceCode)) {
+        throw new SystemAdminApiError('SPACE_CODE_ALREADY_TAKEN', '同じスペースコードは使用できません。')
+      }
+      if (
+        this.state.creationRequests.some(
+          (item) => item.request.status === 'pending' && item.request.spaceCode === normalizedSpaceCode,
+        )
+      ) {
+        throw new SystemAdminApiError('SPACE_CODE_ALREADY_RESERVED', '同じスペースコードは申請中のため使用できません。')
+      }
+      record.space.code = normalizedSpaceCode
+    }
     record.space.joinPolicy = input.joinPolicy ?? record.space.joinPolicy
     record.space.status = input.status ?? record.space.status
 
@@ -536,6 +700,15 @@ export class MockSystemAdminService implements SystemAdminService {
     }
 
     return item
+  }
+
+  private findCreationRequest(requestId: string): SystemSpaceCreationRequestSummary {
+    const request = this.state.creationRequests.find((item) => item.request.id === requestId)
+    if (!request) {
+      throw new SystemAdminApiError('SPACE_CREATION_REQUEST_NOT_FOUND', 'スペース作成申請が見つかりません。')
+    }
+
+    return request
   }
 
   private resolveAuthorMembershipId(spaceId: string): string | null {

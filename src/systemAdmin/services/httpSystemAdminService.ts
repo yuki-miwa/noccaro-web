@@ -8,6 +8,7 @@ import type {
   SystemAuditLog,
   SystemDashboardMetrics,
   SystemReportSummary,
+  SystemSpaceCreationRequestSummary,
   SystemSpaceResource,
   SystemSpaceSummary,
   SystemUserSummary,
@@ -18,9 +19,11 @@ import type {
   CreateOrUpdateSystemPostInput,
   PatchSystemSpaceInput,
   PatchSystemUserInput,
+  ReviewSpaceCreationRequestInput,
   ResolveSystemReportInput,
   SystemAdminLoginInput,
   SystemAdminService,
+  SystemSpaceCreationRequestListQuery,
   SystemReportListQuery,
   SystemPostListQuery,
   SystemSpaceListQuery,
@@ -80,6 +83,44 @@ export class HttpSystemAdminService implements SystemAdminService {
       undefined,
       query as Record<string, string | number | null | undefined> | undefined,
     )
+  }
+
+  async getSpaceCreationRequests(
+    query?: SystemSpaceCreationRequestListQuery,
+  ): Promise<{ data: SystemSpaceCreationRequestSummary[]; meta: ApiListMeta }> {
+    return this.client.request<ApiListResponse<SystemSpaceCreationRequestSummary>>(
+      '/api/v1/system-admin/space-creation-requests',
+      undefined,
+      query as Record<string, string | number | null | undefined> | undefined,
+    )
+  }
+
+  async approveSpaceCreationRequest(
+    requestId: string,
+    input?: ReviewSpaceCreationRequestInput,
+  ): Promise<SystemSpaceCreationRequestSummary> {
+    const response = await this.client.request<ApiResponse<{ request: SystemSpaceCreationRequestSummary }>>(
+      `/api/v1/system-admin/space-creation-requests/${requestId}/approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input ?? {}),
+      },
+    )
+    return response.data.request
+  }
+
+  async rejectSpaceCreationRequest(
+    requestId: string,
+    input?: ReviewSpaceCreationRequestInput,
+  ): Promise<SystemSpaceCreationRequestSummary> {
+    const response = await this.client.request<ApiResponse<{ request: SystemSpaceCreationRequestSummary }>>(
+      `/api/v1/system-admin/space-creation-requests/${requestId}/reject`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input ?? {}),
+      },
+    )
+    return response.data.request
   }
 
   async createSpace(input: CreateSystemSpaceInput): Promise<SystemSpaceSummary> {

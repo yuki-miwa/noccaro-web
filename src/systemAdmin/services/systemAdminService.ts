@@ -11,6 +11,7 @@ import type {
   SystemAuditLog,
   SystemDashboardMetrics,
   SystemAdminPostItem,
+  SystemSpaceCreationRequestSummary,
   SystemReportSummary,
   SystemSpaceResource,
   SystemSpaceStatus,
@@ -28,6 +29,13 @@ export interface SystemSpaceListQuery {
 export interface SystemUserListQuery {
   search?: string
   status?: 'active' | 'locked' | 'deleted' | 'all'
+  cursor?: string | null
+  limit?: number
+}
+
+export interface SystemSpaceCreationRequestListQuery {
+  search?: string
+  status?: 'pending' | 'approved' | 'rejected' | 'all'
   cursor?: string | null
   limit?: number
 }
@@ -76,6 +84,10 @@ export interface ResolveSystemReportInput {
   note?: string | null
 }
 
+export interface ReviewSpaceCreationRequestInput {
+  note?: string | null
+}
+
 export interface SystemPostListQuery {
   category?: 'all' | 'owner' | 'operation'
   cursor?: string | null
@@ -107,6 +119,11 @@ export interface SystemAdminService {
   getMe(): Promise<SystemAdminMeResult>
   getDashboard(): Promise<SystemDashboardMetrics>
   getSpaces(query?: SystemSpaceListQuery): Promise<{ data: SystemSpaceSummary[]; meta: ApiListMeta }>
+  getSpaceCreationRequests(
+    query?: SystemSpaceCreationRequestListQuery,
+  ): Promise<{ data: SystemSpaceCreationRequestSummary[]; meta: ApiListMeta }>
+  approveSpaceCreationRequest(requestId: string, input?: ReviewSpaceCreationRequestInput): Promise<SystemSpaceCreationRequestSummary>
+  rejectSpaceCreationRequest(requestId: string, input?: ReviewSpaceCreationRequestInput): Promise<SystemSpaceCreationRequestSummary>
   createSpace(input: CreateSystemSpaceInput): Promise<SystemSpaceSummary>
   patchSpace(spaceId: string, input: PatchSystemSpaceInput): Promise<SystemSpaceResource>
   assignPrimaryOwner(spaceId: string, input: AssignPrimaryOwnerInput): Promise<SystemSpaceSummary>
