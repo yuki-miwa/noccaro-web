@@ -8,6 +8,7 @@ import type {
   MeResult,
   MembershipResource,
   NotificationSettingsResource,
+  ProfileUpdateResult,
   PostAudienceType,
   PostCategory,
   PostResource,
@@ -86,12 +87,19 @@ export interface LoginInput {
   password: string
 }
 
+export interface UpdateProfileInput {
+  displayName?: string
+  email?: string
+  currentPassword?: string
+}
+
 export interface AdminService {
   readonly mode: 'mock' | 'real'
   hasStoredSession(): boolean
   login(input: LoginInput): Promise<AuthResult>
   logout(): Promise<void>
   getMe(): Promise<MeResult>
+  updateProfile(input: UpdateProfileInput): Promise<ProfileUpdateResult>
   getJoinedSpaces(): Promise<JoinedSpacesResult>
   getAdminSpace(spaceId: string): Promise<SpaceDetailResult>
   updateAdminSpace(spaceId: string, input: UpdateSpaceInput): Promise<SpaceDetailResult>

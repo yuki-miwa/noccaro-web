@@ -198,6 +198,24 @@ export class MockAdminApi {
     return structuredClone(this.snapshot)
   }
 
+  async updateCurrentUserProfile(input: { displayName?: string; email?: string }): Promise<AdminSnapshot> {
+    await delay()
+    const user = this.snapshot.users.find((item) => item.id === this.snapshot.currentUserId)
+    if (!user) {
+      throw new MockApiError('user_not_found', 'User not found.')
+    }
+
+    if (input.displayName !== undefined) {
+      user.displayName = input.displayName
+    }
+
+    if (input.email !== undefined) {
+      user.email = input.email
+    }
+
+    return structuredClone(this.snapshot)
+  }
+
   async setActiveSpace(spaceId: number): Promise<AdminSnapshot> {
     await delay(20)
     const space = this.snapshot.spaces.find((item) => item.id === spaceId)

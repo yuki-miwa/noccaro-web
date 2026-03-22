@@ -10,6 +10,7 @@ import type {
   MeResult,
   MembershipResource,
   NotificationSettingsResource,
+  ProfileUpdateResult,
   PostResource,
   ReportResource,
   SpaceDetailResult,
@@ -23,6 +24,7 @@ import type {
   PatchMembershipInput,
   ReportListQuery,
   ResolveReportInput,
+  UpdateProfileInput,
   UpdateSpaceInput,
   WhisperListQuery,
 } from './adminService'
@@ -68,6 +70,14 @@ export class HttpAdminService implements AdminService {
 
   async getMe(): Promise<MeResult> {
     const response = await this.client.request<ApiResponse<MeResult>>('/api/v1/me')
+    return response.data
+  }
+
+  async updateProfile(input: UpdateProfileInput): Promise<ProfileUpdateResult> {
+    const response = await this.client.request<ApiResponse<ProfileUpdateResult>>('/api/v1/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
     return response.data
   }
 

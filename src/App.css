@@ -212,6 +212,15 @@ button:disabled {
   color: #75570a;
 }
 
+.success-banner {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #9fc7ac;
+  background: #e8f6ed;
+  color: #1d5f34;
+}
+
 .page-stack {
   margin-top: 14px;
   display: grid;

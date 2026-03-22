@@ -100,4 +100,33 @@ describe('MockAdminService', () => {
     expect(updated.recipientUserIds).toEqual(['usr-0003', 'usr-0004'])
     expect(published.notifyMembers).toBe(true)
   })
+
+  it('updates profile fields and requires current password for email changes', async () => {
+    const service = new MockAdminService()
+    await service.login({
+      email: 'primary-owner@noccaro.local',
+      password: 'password123',
+    })
+
+    const displayNameOnly = await service.updateProfile({
+      displayName: '新しい表示名',
+    })
+
+    expect(displayNameOnly.user.displayName).toBe('新しい表示名')
+    expect(displayNameOnly.profileUpdate.emailChangeRequiresVerification).toBe(false)
+
+    await expect(
+      service.updateProfile({
+        email: 'updated-owner@example.com',
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' })
+
+    const updated = await service.updateProfile({
+      email: 'updated-owner@example.com',
+      currentPassword: 'password123',
+    })
+
+    expect(updated.user.email).toBe('updated-owner@example.com')
+    expect(updated.profileUpdate.pendingEmail).toBeNull()
+  })
 })

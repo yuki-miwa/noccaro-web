@@ -9,6 +9,7 @@ import type {
   MeResult,
   MembershipResource,
   NotificationSettingsResource,
+  ProfileUpdateResult,
   PostResource,
   ReportResource,
   SpaceDetailResult,
@@ -33,6 +34,7 @@ import type {
   PatchMembershipInput,
   ReportListQuery,
   ResolveReportInput,
+  UpdateProfileInput,
   UpdateSpaceInput,
   WhisperListQuery,
 } from './adminService'
@@ -118,6 +120,58 @@ export class MockAdminService implements AdminService {
       user: this.toUserResource(user),
       notificationSettings: {
         enabled: true,
+      },
+      profile: {
+        pendingEmail: null,
+      },
+    }
+  }
+
+  async updateProfile(input: UpdateProfileInput): Promise<ProfileUpdateResult> {
+    const snapshot = await this.getSessionSnapshot()
+    const user = snapshot.users.find((item) => item.id === snapshot.currentUserId)
+    if (!user) {
+      throw new MockApiError('RESOURCE_NOT_FOUND', 'Current mock user not found.')
+    }
+
+    const nextDisplayName = input.displayName?.trim()
+    const nextEmail = input.email?.trim().toLowerCase()
+    const emailChanged = nextEmail !== undefined && nextEmail !== user.email.toLowerCase()
+
+    if (!nextDisplayName && !nextEmail) {
+      throw new MockApiError('VALIDATION_ERROR', 'displayName または email を指定してください。')
+    }
+
+    if (nextDisplayName !== undefined && nextDisplayName.length === 0) {
+      throw new MockApiError('VALIDATION_ERROR', '表示名を入力してください。')
+    }
+
+    if (emailChanged && !input.currentPassword?.trim()) {
+      throw new MockApiError('VALIDATION_ERROR', 'メールアドレスを変更するには現在のパスワードが必要です。')
+    }
+
+    if (emailChanged && input.currentPassword !== MOCK_PASSWORD) {
+      throw new MockApiError('CURRENT_PASSWORD_INVALID', '現在のパスワードが正しくありません。')
+    }
+
+    if (
+      emailChanged &&
+      snapshot.users.some((item) => item.id !== user.id && item.email.toLowerCase() === nextEmail)
+    ) {
+      throw new MockApiError('EMAIL_ALREADY_TAKEN', 'このメールアドレスはすでに使われています。')
+    }
+
+    await this.engine.updateCurrentUserProfile({
+      displayName: nextDisplayName,
+      email: nextEmail,
+    })
+
+    const refreshed = await this.getMe()
+    return {
+      user: refreshed.user,
+      profileUpdate: {
+        emailChangeRequiresVerification: false,
+        pendingEmail: null,
       },
     }
   }

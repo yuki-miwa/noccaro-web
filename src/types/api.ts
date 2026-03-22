@@ -158,6 +158,18 @@ export interface NotificationSettingsResource {
   enabled: boolean
 }
 
+export interface ProfileStateResource {
+  pendingEmail: string | null
+}
+
+export interface ProfileUpdateResult {
+  user: UserResource
+  profileUpdate: {
+    emailChangeRequiresVerification: boolean
+    pendingEmail: string | null
+  }
+}
+
 export interface AdminJoinRequestItem {
   membership: MembershipResource
   user: UserResource
@@ -188,6 +200,7 @@ export interface AuthResult {
 export interface MeResult {
   user: UserResource
   notificationSettings: NotificationSettingsResource
+  profile: ProfileStateResource
 }
 
 export interface JoinedSpacesResult {

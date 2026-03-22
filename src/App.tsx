@@ -3,6 +3,7 @@ import './App.css'
 import { AdminLayout } from './components/AdminLayout'
 import { AdminProvider, useAdminContext } from './context/AdminContext'
 import { DashboardPage } from './pages/DashboardPage'
+import { AccountPage } from './pages/AccountPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembersPage } from './pages/MembersPage'
 import { PostsPage } from './pages/PostsPage'
@@ -57,6 +58,7 @@ function OwnerAdminRoutes() {
           <Route element={<AdminLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="account" element={<AccountPage />} />
             <Route path="space-settings" element={<SpaceSettingsPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="posts" element={<PostsPage />} />

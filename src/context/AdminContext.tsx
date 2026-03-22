@@ -16,6 +16,7 @@ import type {
   JoinedSpaceSummary,
   MembershipResource,
   NotificationSettingsResource,
+  ProfileStateResource,
   PostResource,
   SpaceResource,
   UserResource,
@@ -27,6 +28,7 @@ import type {
   CreateOrUpdatePostInput,
   PatchMembershipInput,
   ResolveReportInput,
+  UpdateProfileInput,
   UpdateSpaceInput,
 } from '../services/adminService'
 import { ApiClientError } from '../services/httpClient'
@@ -52,6 +54,7 @@ interface AdminContextValue {
   error: string | null
   user: UserResource | null
   notificationSettings: NotificationSettingsResource | null
+  profile: ProfileStateResource | null
   joinedSpaces: JoinedSpaceSummary[]
   adminSpaces: JoinedSpaceSummary[]
   selectedSpaceId: string | null
@@ -79,6 +82,7 @@ interface AdminContextValue {
   deletePost: (postId: string) => Promise<void>
   resolveReport: (reportId: string, input: ResolveReportInput) => Promise<void>
   removeWhisper: (whisperId: string, reason?: string | null) => Promise<void>
+  updateProfile: (input: UpdateProfileInput) => Promise<void>
 }
 
 const emptyMetrics: DashboardMetrics = {
@@ -95,6 +99,8 @@ const localizedErrorMessages: Record<string, string> = {
   UNAUTHENTICATED: 'ログイン情報を確認してください。',
   FORBIDDEN: 'この操作を行う権限がありません。',
   RESOURCE_NOT_FOUND: '対象データが見つかりません。',
+  EMAIL_ALREADY_TAKEN: 'このメールアドレスはすでに使われています。',
+  CURRENT_PASSWORD_INVALID: '現在のパスワードが正しくありません。',
   user_not_found: 'ユーザーが見つかりません。',
   space_not_found: 'スペースが見つかりません。',
   membership_not_found: 'メンバーシップが見つかりません。',
@@ -127,6 +133,7 @@ export function AdminProvider({ children }: PropsWithChildren) {
   const [error, setError] = useState<string | null>(null)
   const [user, setUser] = useState<UserResource | null>(null)
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettingsResource | null>(null)
+  const [profile, setProfile] = useState<ProfileStateResource | null>(null)
   const [joinedSpaces, setJoinedSpaces] = useState<JoinedSpaceSummary[]>([])
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
   const [selectedSpace, setSelectedSpace] = useState<SpaceResource | null>(null)
@@ -197,6 +204,7 @@ export function AdminProvider({ children }: PropsWithChildren) {
       if (!service.hasStoredSession()) {
         setUser(null)
         setNotificationSettings(null)
+        setProfile(null)
         setJoinedSpaces([])
         setSelectedSpaceId(null)
         clearSpaceState()
@@ -212,6 +220,7 @@ export function AdminProvider({ children }: PropsWithChildren) {
 
       setUser(meResult.user)
       setNotificationSettings(nextNotificationSettings)
+      setProfile(meResult.profile)
       setJoinedSpaces(joinedSpaceResult.joinedSpaces)
 
       const adminEligibleSpaces = joinedSpaceResult.joinedSpaces.filter(
@@ -240,6 +249,7 @@ export function AdminProvider({ children }: PropsWithChildren) {
       setReady(true)
     } catch (caughtError) {
       setError(normalizeError(caughtError))
+      setProfile(null)
       clearSpaceState()
       setReady(true)
     } finally {
@@ -272,6 +282,7 @@ export function AdminProvider({ children }: PropsWithChildren) {
       error,
       user,
       notificationSettings,
+      profile,
       joinedSpaces,
       adminSpaces,
       selectedSpaceId,
@@ -295,6 +306,7 @@ export function AdminProvider({ children }: PropsWithChildren) {
           storage.removeItem(SELECTED_SPACE_KEY)
           setUser(null)
           setNotificationSettings(null)
+          setProfile(null)
           setJoinedSpaces([])
           setSelectedSpaceId(null)
           clearSpaceState()
@@ -390,6 +402,22 @@ export function AdminProvider({ children }: PropsWithChildren) {
           await bootstrap(selectedSpaceId)
         })
       },
+      updateProfile: async (input) => {
+        setLoading(true)
+        setError(null)
+        try {
+          const result = await serviceRef.current.updateProfile(input)
+          setUser(result.user)
+          setProfile({
+            pendingEmail: result.profileUpdate.pendingEmail,
+          })
+        } catch (caughtError) {
+          setError(normalizeError(caughtError))
+          throw caughtError
+        } finally {
+          setLoading(false)
+        }
+      },
     }),
     [
       adminSpaces,
@@ -403,6 +431,7 @@ export function AdminProvider({ children }: PropsWithChildren) {
       members,
       notificationSettings,
       posts,
+      profile,
       ready,
       reports,
       selectedMembership,

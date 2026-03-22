@@ -4,6 +4,7 @@ import { roleLabel } from '../utils/format'
 
 const navigationItems = [
   { to: '/dashboard', label: 'ダッシュボード' },
+  { to: '/account', label: 'アカウント設定' },
   { to: '/space-settings', label: 'スペース設定' },
   { to: '/members', label: 'メンバー管理' },
   { to: '/posts', label: 'オーナー投稿' },
