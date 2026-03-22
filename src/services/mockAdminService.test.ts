@@ -89,12 +89,15 @@ describe('MockAdminService', () => {
     const updated = await service.updateAdminPost(created.id, {
       audienceType: 'targeted_users',
       recipientUserIds: ['usr-0003', 'usr-0004'],
-      notifyMembers: false,
+      notifyMembers: true,
     })
+    const published = await service.publishAdminPost(created.id, true)
 
     expect(created.category).toBe('owner')
     expect(created.audienceType).toBe('targeted_users')
     expect(created.recipientUserIds).toEqual(['usr-0003'])
+    expect(updated.notifyMembers).toBe(true)
     expect(updated.recipientUserIds).toEqual(['usr-0003', 'usr-0004'])
+    expect(published.notifyMembers).toBe(true)
   })
 })

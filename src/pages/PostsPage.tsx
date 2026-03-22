@@ -62,7 +62,6 @@ export function PostsPage() {
     setForm((current) => ({
       ...current,
       audienceType,
-      notifyMembers: audienceType === 'targeted_users' ? false : current.notifyMembers,
       recipientUserIds: audienceType === 'targeted_users' ? current.recipientUserIds : [],
     }))
   }
@@ -86,7 +85,7 @@ export function PostsPage() {
       category: 'owner' as const,
       title: form.title.trim(),
       body: form.body.trim(),
-      notifyMembers: form.audienceType === 'targeted_users' ? false : form.notifyMembers,
+      notifyMembers: form.notifyMembers,
       status: form.status,
       audienceType: form.audienceType,
       recipientUserIds: form.audienceType === 'targeted_users' ? form.recipientUserIds : [],
@@ -170,9 +169,8 @@ export function PostsPage() {
               type="checkbox"
               checked={form.notifyMembers}
               onChange={(event) => setForm({ ...form, notifyMembers: event.target.checked })}
-              disabled={form.audienceType === 'targeted_users'}
             />
-            <span>{form.audienceType === 'targeted_users' ? '指定アカウント向けでは通知できません' : 'メンバーに通知する'}</span>
+            <span>{form.audienceType === 'targeted_users' ? '指定したアカウントに Android Push も送る' : 'メンバーに Android Push を送る'}</span>
           </label>
           {form.audienceType === 'targeted_users' ? (
             <div className="recipient-panel">
@@ -199,7 +197,7 @@ export function PostsPage() {
                   ))}
                 </div>
               )}
-              <p className="field-hint">指定したアカウントだけが、この投稿を「あなたへ」付きで受け取ります。</p>
+              <p className="field-hint">指定したアカウントだけが、この投稿を「あなたへ」付きで受け取り、通知有効なら Android Push も送られます。</p>
             </div>
           ) : null}
           <div className="actions-grid">
@@ -285,7 +283,7 @@ export function PostsPage() {
                   {post.status !== 'published' ? (
                     <button
                       type="button"
-                      onClick={() => void publishPost(post.id, post.audienceType === 'all_members' ? post.notifyMembers : false)}
+                      onClick={() => void publishPost(post.id, post.notifyMembers)}
                       disabled={loading}
                     >
                       公開

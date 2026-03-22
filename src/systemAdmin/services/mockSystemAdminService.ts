@@ -469,7 +469,7 @@ export class MockSystemAdminService implements SystemAdminService {
         title: input.title?.trim() ?? '',
         body: input.body?.trim() ?? '',
         status: input.status ?? 'draft',
-        notifyMembers: audienceType === 'targeted_users' ? false : Boolean(input.notifyMembers),
+        notifyMembers: Boolean(input.notifyMembers),
         publishedAt: publishedNow ? createdAt : null,
         visibleFrom: input.visibleFrom ?? null,
         visibleTo: input.visibleTo ?? null,
@@ -512,10 +512,7 @@ export class MockSystemAdminService implements SystemAdminService {
       status: input.status ?? postItem.post.status,
       audienceType,
       recipientUserIds: recipients,
-      notifyMembers:
-        audienceType === 'targeted_users'
-          ? false
-          : input.notifyMembers ?? postItem.post.notifyMembers,
+      notifyMembers: input.notifyMembers ?? postItem.post.notifyMembers,
       visibleFrom: input.visibleFrom === undefined ? postItem.post.visibleFrom : input.visibleFrom,
       visibleTo: input.visibleTo === undefined ? postItem.post.visibleTo : input.visibleTo,
       updatedAt: nowIso(),
@@ -532,10 +529,6 @@ export class MockSystemAdminService implements SystemAdminService {
 
   async publishSpacePost(postId: string, notifyMembers: boolean): Promise<SystemAdminPostItem> {
     const postItem = this.findPostItem(postId)
-    if (postItem.post.audienceType === 'targeted_users' && notifyMembers) {
-      throw new SystemAdminApiError('VALIDATION_ERROR', '指定アカウント向けでは通知を有効にできません。')
-    }
-
     postItem.post.status = 'published'
     postItem.post.notifyMembers = notifyMembers
     postItem.post.publishedAt = postItem.post.publishedAt ?? nowIso()

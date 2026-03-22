@@ -72,7 +72,7 @@ describe('MockSystemAdminService', () => {
       title: '個別フォロー',
       body: '指定ユーザー向けのご案内です。',
       status: 'draft',
-      notifyMembers: false,
+      notifyMembers: true,
       audienceType: 'targeted_users',
       recipientUserIds: ['user_guest_003'],
     })
@@ -80,16 +80,19 @@ describe('MockSystemAdminService', () => {
     const updated = await service.updateSpacePost(created.post.id, {
       audienceType: 'targeted_users',
       recipientUserIds: ['user_guest_003', 'user_owner_002'],
-      notifyMembers: false,
+      notifyMembers: true,
     })
 
-    const published = await service.publishSpacePost(updated.post.id, false)
+    const published = await service.publishSpacePost(updated.post.id, true)
     const posts = await service.getSpacePosts('space_001', { category: 'operation', limit: 100 })
 
     expect(created.post.category).toBe('operation')
     expect(created.post.audienceType).toBe('targeted_users')
+    expect(created.post.notifyMembers).toBe(true)
     expect(updated.post.recipientUserIds).toEqual(['user_guest_003', 'user_owner_002'])
+    expect(updated.post.notifyMembers).toBe(true)
     expect(published.post.status).toBe('published')
+    expect(published.post.notifyMembers).toBe(true)
     expect(posts.data.some((item) => item.post.id === created.post.id)).toBe(true)
   })
 })

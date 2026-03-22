@@ -98,7 +98,6 @@ export function SystemPostsPage() {
     setForm((current) => ({
       ...current,
       audienceType,
-      notifyMembers: audienceType === 'targeted_users' ? false : current.notifyMembers,
       recipientUserIds: audienceType === 'targeted_users' ? current.recipientUserIds : [],
     }))
   }
@@ -118,7 +117,6 @@ export function SystemPostsPage() {
         ...current,
         audienceType: 'all_members',
         recipientUserIds: [],
-        notifyMembers: current.notifyMembers,
       }))
     }
 
@@ -140,7 +138,7 @@ export function SystemPostsPage() {
       title: form.title.trim(),
       body: form.body.trim(),
       status: form.status,
-      notifyMembers: form.audienceType === 'targeted_users' ? false : form.notifyMembers,
+      notifyMembers: form.notifyMembers,
       audienceType: form.audienceType,
       recipientUserIds: form.audienceType === 'targeted_users' ? form.recipientUserIds : [],
     }
@@ -248,9 +246,8 @@ export function SystemPostsPage() {
               type="checkbox"
               checked={form.notifyMembers}
               onChange={(event) => setForm({ ...form, notifyMembers: event.target.checked })}
-              disabled={form.audienceType === 'targeted_users'}
             />
-            <span>{form.audienceType === 'targeted_users' ? '指定アカウント向けでは通知できません' : 'メンバーに通知する'}</span>
+            <span>{form.audienceType === 'targeted_users' ? '指定したアカウントに Android Push も送る' : 'メンバーに Android Push を送る'}</span>
           </label>
           {form.audienceType === 'targeted_users' && !isAllSpacesSelected ? (
             <div className="recipient-panel settings-form-full">
@@ -277,7 +274,7 @@ export function SystemPostsPage() {
                   ))}
                 </div>
               )}
-              <p className="field-hint">指定したアカウントだけが「あなたへ」ラベル付きで受け取ります。</p>
+              <p className="field-hint">指定したアカウントだけが「あなたへ」ラベル付きで受け取り、通知有効なら Android Push も送られます。</p>
             </div>
           ) : null}
           <div className="actions-grid">
@@ -381,7 +378,7 @@ export function SystemPostsPage() {
                     {post.status !== 'published' ? (
                       <button
                         type="button"
-                        onClick={() => void publishPost(post.id, post.audienceType === 'all_members' ? post.notifyMembers : false)}
+                        onClick={() => void publishPost(post.id, post.notifyMembers)}
                         disabled={loading}
                       >
                         公開

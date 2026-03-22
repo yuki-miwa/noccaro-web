@@ -293,7 +293,7 @@ export class MockAdminService implements AdminService {
     const snapshot = await this.getSnapshotForSpace(spaceId)
     this.assertAdminMembership(this.getCurrentSpaceMembership(snapshot))
 
-    this.assertAudienceInput(input.audienceType, input.notifyMembers, input.recipientUserIds)
+    this.assertAudienceInput(input.audienceType, input.recipientUserIds)
     await this.engine.createPost({
       title: input.title ?? '',
       body: input.body ?? '',
@@ -339,7 +339,7 @@ export class MockAdminService implements AdminService {
     const currentConfig = this.getPostConfig(post.publicId)
     const nextAudienceType = input.audienceType ?? currentConfig.audienceType
     const nextRecipients = input.recipientUserIds ?? currentConfig.recipientUserIds
-    this.assertAudienceInput(nextAudienceType, input.notifyMembers ?? post.notifyMembers, nextRecipients)
+    this.assertAudienceInput(nextAudienceType, nextRecipients)
     await this.engine.updatePost({
       postId: post.id,
       title: input.title,
@@ -361,7 +361,7 @@ export class MockAdminService implements AdminService {
     const post = await this.findPostByPublicId(postId)
     await this.engine.setActiveSpace(post.spaceId)
     const config = this.getPostConfig(post.publicId)
-    this.assertAudienceInput(config.audienceType, notifyMembers, config.recipientUserIds)
+    this.assertAudienceInput(config.audienceType, config.recipientUserIds)
     await this.engine.publishPost(post.id, notifyMembers)
     return this.getPostResource(postId)
   }
@@ -718,15 +718,10 @@ export class MockAdminService implements AdminService {
 
   private assertAudienceInput(
     audienceType: 'all_members' | 'targeted_users' | undefined,
-    notifyMembers: boolean | undefined,
     recipientUserIds: string[] | undefined,
   ): void {
     if (audienceType !== 'targeted_users') {
       return
-    }
-
-    if (notifyMembers) {
-      throw new MockApiError('VALIDATION_ERROR', '指定アカウント向けでは通知を有効にできません。')
     }
 
     if (!recipientUserIds || recipientUserIds.length === 0) {
