@@ -42,6 +42,9 @@ export interface SystemSpaceResource {
   whisperMaxLength: number
   locationGridMeters: number
   locationJitterEnabled: boolean
+  autoHideReportThreshold?: number
+  postLimitPerMinute?: number
+  postLimitPerTenMinutes?: number
   createdAt: string
 }
 
