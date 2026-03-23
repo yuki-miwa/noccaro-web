@@ -115,6 +115,16 @@ export interface PostResource {
   updatedAt: string
 }
 
+export interface WhisperImageResource {
+  originalUrl: string
+  previewUrl: string
+  thumbnailUrl: string
+  mimeType: string
+  width: number
+  height: number
+  byteSize: number
+}
+
 export interface WhisperResource {
   id: string
   spaceId: string
@@ -126,6 +136,7 @@ export interface WhisperResource {
   displayRadiusM: number
   expiresAt: string
   reportCount: number
+  image: WhisperImageResource | null
   createdAt: string
 }
 

@@ -125,6 +125,7 @@ export interface SystemReportSummary {
   target: {
     id: string
     body: string
+    imageThumbnailUrl?: string | null
   }
   reporter: Pick<UserResource, 'id' | 'email' | 'displayName'>
 }

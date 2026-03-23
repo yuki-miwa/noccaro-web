@@ -26,6 +26,7 @@ export function WhispersPage() {
             <thead>
               <tr>
                 <th>ID</th>
+                <th>画像</th>
                 <th>本文</th>
                 <th>状態</th>
                 <th>表示座標</th>
@@ -38,7 +39,22 @@ export function WhispersPage() {
               {whispers.map((whisper) => (
                 <tr key={whisper.id}>
                   <td>{whisper.id}</td>
-                  <td>{whisper.body}</td>
+                  <td>
+                    {whisper.image ? (
+                      <img
+                        className="whisper-thumb"
+                        src={whisper.image.thumbnailUrl}
+                        alt="Whisper 添付画像"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="row-subtext">なし</span>
+                    )}
+                  </td>
+                  <td>
+                    <div>{whisper.body}</div>
+                    {whisper.image ? <div className="row-subtext">画像あり</div> : null}
+                  </td>
                   <td>{whisperStatusLabel(whisper.status)}</td>
                   <td>
                     <div className="row-subtext">

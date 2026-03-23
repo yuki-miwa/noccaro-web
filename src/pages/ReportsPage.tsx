@@ -71,6 +71,14 @@ export function ReportsPage() {
                   <td>
                     <div>{item.target.whisper?.body ?? item.report.targetId}</div>
                     <div className="row-subtext">{item.target.whisper?.id ?? '-'}</div>
+                    {item.target.whisper?.image ? (
+                      <img
+                        className="whisper-thumb"
+                        src={item.target.whisper.image.thumbnailUrl}
+                        alt="通報対象のWhisper画像"
+                        loading="lazy"
+                      />
+                    ) : null}
                   </td>
                   <td>
                     <div>{item.reporter.user.displayName}</div>

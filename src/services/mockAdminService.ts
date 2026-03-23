@@ -795,6 +795,7 @@ export class MockAdminService implements AdminService {
       displayRadiusM: whisper.displayRadiusM,
       expiresAt: whisper.expiresAt,
       reportCount: whisper.reportCount,
+      image: null,
       createdAt: whisper.createdAt,
     }
   }

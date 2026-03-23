@@ -66,6 +66,14 @@ export function SystemReportsPage() {
                   <td>
                     <div>{item.target.body}</div>
                     <div className="row-subtext">{item.target.id}</div>
+                    {item.target.imageThumbnailUrl ? (
+                      <img
+                        className="whisper-thumb"
+                        src={item.target.imageThumbnailUrl}
+                        alt="通報対象のWhisper画像"
+                        loading="lazy"
+                      />
+                    ) : null}
                   </td>
                   <td>
                     <div>{item.reporter.displayName}</div>

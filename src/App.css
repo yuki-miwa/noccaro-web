@@ -448,6 +448,17 @@ button:disabled {
   line-height: 1.35;
 }
 
+.whisper-thumb {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin-top: 8px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #d7e0ef;
+  background: #f5f8ff;
+}
+
 .actions-grid {
   display: flex;
   flex-wrap: wrap;
