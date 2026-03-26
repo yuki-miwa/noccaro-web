@@ -5,6 +5,7 @@ import type {
   SystemAdminAuthResult,
   SystemAdminMeResult,
   SystemAdminPostItem,
+  SystemLiveSummary,
   SystemAuditLog,
   SystemDashboardMetrics,
   SystemReportSummary,
@@ -22,6 +23,7 @@ import type {
   ReviewSpaceCreationRequestInput,
   ResolveSystemReportInput,
   SystemAdminLoginInput,
+  SystemLiveListQuery,
   SystemAdminService,
   SystemSpaceCreationRequestListQuery,
   SystemReportListQuery,
@@ -245,5 +247,29 @@ export class HttpSystemAdminService implements SystemAdminService {
 
   async getAuditLogs(): Promise<{ data: SystemAuditLog[]; meta: ApiListMeta }> {
     return this.client.request<ApiListResponse<SystemAuditLog>>('/api/v1/system-admin/audit-logs')
+  }
+
+  async getLiveThreads(query?: SystemLiveListQuery): Promise<{ data: SystemLiveSummary[]; meta: ApiListMeta }> {
+    return this.client.request<ApiListResponse<SystemLiveSummary>>(
+      '/api/v1/system-admin/live-threads',
+      undefined,
+      query as Record<string, string | number | null | undefined> | undefined,
+    )
+  }
+
+  async forceCloseLiveThread(spaceId: string): Promise<SystemLiveSummary> {
+    const response = await this.client.request<ApiResponse<SystemLiveSummary>>(
+      `/api/v1/system-admin/spaces/${spaceId}/live-thread/force-close`,
+      { method: 'POST' },
+    )
+    return response.data
+  }
+
+  async forceEndLiveStream(spaceId: string): Promise<SystemLiveSummary> {
+    const response = await this.client.request<ApiResponse<SystemLiveSummary>>(
+      `/api/v1/system-admin/spaces/${spaceId}/live-stream/force-end`,
+      { method: 'POST' },
+    )
+    return response.data
   }
 }

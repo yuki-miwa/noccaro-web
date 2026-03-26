@@ -14,6 +14,8 @@ export type NotificationTargetScope = 'all_active_members' | 'owners_only'
 export type PostStatus = 'draft' | 'published' | 'archived' | 'deleted'
 export type PostCategory = 'owner' | 'operation'
 export type PostAudienceType = 'all_members' | 'targeted_users'
+export type LiveThreadStatus = 'active' | 'closed'
+export type LiveStreamStatus = 'idle' | 'live' | 'ended'
 
 export interface ApiListMeta {
   hasMore: boolean
@@ -113,6 +115,77 @@ export interface PostResource {
   recipientUserIds?: string[]
   createdAt: string
   updatedAt: string
+}
+
+export interface LiveThreadResource {
+  id: string
+  spaceId: string | null
+  status: LiveThreadStatus
+  startsAt: string | null
+  endsAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LiveStreamResource {
+  id: string | null
+  liveThreadId: string | null
+  spaceId: string | null
+  status: LiveStreamStatus
+  isLive: boolean
+  playbackUrl: string | null
+  ingestEndpoint?: string
+  channelArn?: string
+  startedAt: string | null
+  endedAt: string | null
+}
+
+export interface LivePermissionsResource {
+  canWatch: boolean
+  canComment: boolean
+  canStartThread: boolean
+  canCloseThread: boolean
+  canStartStream: boolean
+  canEndStream: boolean
+  isPrimaryOwner: boolean
+}
+
+export interface LiveChatPolicyResource {
+  roomId: string
+  endpoint: string
+  messageMaxLength: number
+  cooldownSeconds: number
+}
+
+export interface LiveThreadStateResult {
+  liveThread: LiveThreadResource | null
+  liveStream: LiveStreamResource
+  permissions: LivePermissionsResource
+  chatPolicy?: LiveChatPolicyResource
+  spaceId?: string
+}
+
+export interface LiveBroadcastResource {
+  streamKey: string
+  ingestEndpoint: string
+  channelArn: string
+}
+
+export interface LiveStreamStartResult extends LiveThreadStateResult {
+  broadcast: LiveBroadcastResource
+}
+
+export interface LiveChatTokenResult {
+  chat: {
+    roomArn: string
+    roomId: string
+    endpoint: string
+    token: string
+    expiresAt: string
+    sessionExpiresAt: string
+    messageMaxLength: number
+    cooldownSeconds: number
+  }
 }
 
 export interface WhisperImageResource {

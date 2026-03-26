@@ -6,6 +6,11 @@ import type {
   AuthResult,
   JoinedSpaceSummary,
   JoinedSpacesResult,
+  LivePermissionsResource,
+  LiveStreamResource,
+  LiveStreamStartResult,
+  LiveThreadResource,
+  LiveThreadStateResult,
   MeResult,
   MembershipResource,
   NotificationSettingsResource,
@@ -45,6 +50,10 @@ const TOKEN_KEY = 'noccaro.admin.token'
 const MOCK_PASSWORD = 'password123'
 const storage = getAppStorage()
 
+function nowIso(): string {
+  return new Date().toISOString()
+}
+
 function mapMembershipStatus(status: AdminSnapshot['memberships'][number]['status']): MembershipResource['status'] {
   if (status === 'rejected') {
     return 'left'
@@ -65,6 +74,9 @@ export class MockAdminService implements AdminService {
       recipientUserIds: string[]
     }
   >()
+  private readonly liveThreads = new Map<number, LiveThreadResource>()
+  private readonly liveStreams = new Map<number, LiveStreamResource>()
+  private liveSequence = 1
 
   hasStoredSession(): boolean {
     return Boolean(this.token)
@@ -433,6 +445,108 @@ export class MockAdminService implements AdminService {
     await this.engine.deletePost(post.id)
   }
 
+  async getLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+    const snapshot = await this.getSnapshotForSpace(spaceId)
+    const membership = this.getCurrentSpaceMembership(snapshot)
+    this.assertAdminMembership(membership)
+
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId)
+  }
+
+  async getLiveStream(spaceId: string): Promise<LiveThreadStateResult> {
+    return this.getLiveThread(spaceId)
+  }
+
+  async startLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+    const snapshot = await this.getSnapshotForSpace(spaceId)
+    const membership = this.getCurrentSpaceMembership(snapshot)
+    this.assertPrimaryOwnerMembership(membership)
+
+    if (!this.liveThreads.has(snapshot.activeSpaceId)) {
+      const now = nowIso()
+      this.liveThreads.set(snapshot.activeSpaceId, {
+        id: `live_thread_${String(this.liveSequence).padStart(3, '0')}`,
+        spaceId,
+        status: 'active',
+        startsAt: now,
+        endsAt: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      this.liveSequence += 1
+    }
+
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId)
+  }
+
+  async closeLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+    const snapshot = await this.getSnapshotForSpace(spaceId)
+    const membership = this.getCurrentSpaceMembership(snapshot)
+    this.assertPrimaryOwnerMembership(membership)
+
+    const thread = this.liveThreads.get(snapshot.activeSpaceId) ?? null
+    if (thread) {
+      const now = nowIso()
+      thread.status = 'closed'
+      thread.endsAt = now
+      thread.updatedAt = now
+      this.liveStreams.delete(snapshot.activeSpaceId)
+    }
+
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId, thread, null)
+  }
+
+  async startLiveStream(spaceId: string): Promise<LiveStreamStartResult> {
+    const snapshot = await this.getSnapshotForSpace(spaceId)
+    const membership = this.getCurrentSpaceMembership(snapshot)
+    this.assertPrimaryOwnerMembership(membership)
+
+    if (!this.liveThreads.has(snapshot.activeSpaceId)) {
+      await this.startLiveThread(spaceId)
+    }
+
+    if (!this.liveStreams.has(snapshot.activeSpaceId)) {
+      this.liveStreams.set(snapshot.activeSpaceId, {
+        id: `live_stream_${String(this.liveSequence).padStart(3, '0')}`,
+        liveThreadId: this.liveThreads.get(snapshot.activeSpaceId)?.id ?? null,
+        spaceId,
+        status: 'live',
+        isLive: true,
+        playbackUrl: 'https://example.mock/live.m3u8',
+        ingestEndpoint: 'rtmps://example.mock/app/',
+        channelArn: 'arn:aws:ivs:ap-northeast-1:328125385782:channel/mock',
+        startedAt: nowIso(),
+        endedAt: null,
+      })
+      this.liveSequence += 1
+    }
+
+    return {
+      ...this.buildLiveState(spaceId, membership, snapshot.activeSpaceId),
+      broadcast: {
+        streamKey: 'mock-stream-key',
+        ingestEndpoint: 'rtmps://example.mock/app/',
+        channelArn: 'arn:aws:ivs:ap-northeast-1:328125385782:channel/mock',
+      },
+    }
+  }
+
+  async endLiveStream(spaceId: string): Promise<LiveThreadStateResult> {
+    const snapshot = await this.getSnapshotForSpace(spaceId)
+    const membership = this.getCurrentSpaceMembership(snapshot)
+    this.assertPrimaryOwnerMembership(membership)
+
+    const stream = this.liveStreams.get(snapshot.activeSpaceId) ?? null
+    if (stream) {
+      stream.status = 'ended'
+      stream.isLive = false
+      stream.playbackUrl = null
+      stream.endedAt = nowIso()
+    }
+
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId, undefined, stream)
+  }
+
   async getWhispers(
     spaceId: string,
     query?: WhisperListQuery,
@@ -646,6 +760,13 @@ export class MockAdminService implements AdminService {
     }
   }
 
+  private assertPrimaryOwnerMembership(membership: SpaceMembership): void {
+    this.assertAdminMembership(membership)
+    if (membership.role !== 'primary_owner') {
+      throw new MockApiError('FORBIDDEN', 'プライマリオーナーのみ実行できます。')
+    }
+  }
+
   private matchesWhisperBounds(whisper: MapWhisper, query?: WhisperListQuery): boolean {
     if (!query) {
       return true
@@ -753,6 +874,68 @@ export class MockAdminService implements AdminService {
       recipientUserIds: config.recipientUserIds,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
+    }
+  }
+
+  private buildLiveState(
+    publicSpaceId: string,
+    membership: SpaceMembership,
+    internalSpaceId: number,
+    threadOverride?: LiveThreadResource | null,
+    streamOverride?: LiveStreamResource | null,
+  ): LiveThreadStateResult {
+    const thread = threadOverride === undefined ? (this.liveThreads.get(internalSpaceId) ?? null) : threadOverride
+    const stream =
+      streamOverride === undefined
+        ? (this.liveStreams.get(internalSpaceId) ?? {
+            id: null,
+            liveThreadId: null,
+            spaceId: null,
+            status: 'idle',
+            isLive: false,
+            playbackUrl: null,
+            startedAt: null,
+            endedAt: null,
+          })
+        : (streamOverride ?? {
+            id: null,
+            liveThreadId: null,
+            spaceId: null,
+            status: 'idle',
+            isLive: false,
+            playbackUrl: null,
+            startedAt: null,
+            endedAt: null,
+          })
+
+    const permissions: LivePermissionsResource = {
+      canWatch: membership.status === 'active' && thread?.status === 'active',
+      canComment: membership.status === 'active' && thread?.status === 'active',
+      canStartThread:
+        membership.status === 'active' &&
+        membership.role === 'primary_owner' &&
+        thread?.status !== 'active',
+      canCloseThread: membership.status === 'active' && membership.role === 'primary_owner' && thread?.status === 'active',
+      canStartStream:
+        membership.status === 'active' &&
+        membership.role === 'primary_owner' &&
+        thread?.status === 'active' &&
+        stream.status !== 'live',
+      canEndStream: membership.status === 'active' && membership.role === 'primary_owner' && stream.status === 'live',
+      isPrimaryOwner: membership.role === 'primary_owner',
+    }
+
+    return {
+      liveThread: thread,
+      liveStream: stream,
+      permissions,
+      chatPolicy: {
+        roomId: 'mock-room',
+        endpoint: 'wss://edge.ivschat.ap-northeast-1.amazonaws.com',
+        messageMaxLength: 30,
+        cooldownSeconds: 3,
+      },
+      spaceId: publicSpaceId,
     }
   }
 

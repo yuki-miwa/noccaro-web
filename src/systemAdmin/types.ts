@@ -1,6 +1,8 @@
 import type {
   ApiListMeta,
   JoinPolicy,
+  LiveStreamResource,
+  LiveThreadResource,
   MembershipStatus,
   PostResource,
   ReportReasonType,
@@ -144,6 +146,13 @@ export interface SystemAdminPostItem {
   createdBySystemAdmin: SystemAdminUser | null
 }
 
+export interface SystemLiveSummary {
+  space: SystemSpaceResource
+  primaryOwner: SystemSpaceOwnerSummary
+  liveThread: LiveThreadResource | null
+  liveStream: LiveStreamResource
+}
+
 export interface SystemAdminAuthResult {
   token: string
   user: SystemAdminUser
@@ -180,5 +189,10 @@ export interface SystemAuditLogListResult {
 
 export interface SystemPostListResult {
   data: SystemAdminPostItem[]
+  meta: ApiListMeta
+}
+
+export interface SystemLiveListResult {
+  data: SystemLiveSummary[]
   meta: ApiListMeta
 }

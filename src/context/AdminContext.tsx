@@ -14,6 +14,10 @@ import type {
   AdminMemberItem,
   AdminReportItem,
   JoinedSpaceSummary,
+  LiveBroadcastResource,
+  LivePermissionsResource,
+  LiveStreamResource,
+  LiveThreadResource,
   MembershipResource,
   NotificationSettingsResource,
   ProfileStateResource,
@@ -60,6 +64,10 @@ interface AdminContextValue {
   selectedSpaceId: string | null
   selectedSpace: SpaceResource | null
   selectedMembership: MembershipResource | null
+  liveThread: LiveThreadResource | null
+  liveStream: LiveStreamResource
+  livePermissions: LivePermissionsResource | null
+  liveBroadcast: LiveBroadcastResource | null
   joinRequests: AdminJoinRequestItem[]
   members: AdminMemberItem[]
   posts: PostResource[]
@@ -80,6 +88,10 @@ interface AdminContextValue {
   publishPost: (postId: string, notifyMembers: boolean) => Promise<void>
   archivePost: (postId: string) => Promise<void>
   deletePost: (postId: string) => Promise<void>
+  startLiveThread: () => Promise<void>
+  closeLiveThread: () => Promise<void>
+  startLiveStream: () => Promise<void>
+  endLiveStream: () => Promise<void>
   resolveReport: (reportId: string, input: ResolveReportInput) => Promise<void>
   removeWhisper: (whisperId: string, reason?: string | null) => Promise<void>
   updateProfile: (input: UpdateProfileInput) => Promise<void>
@@ -91,6 +103,17 @@ const emptyMetrics: DashboardMetrics = {
   activeWhisperCount: 0,
   openReportCount: 0,
   publishedPostCount: 0,
+}
+
+const idleLiveStream: LiveStreamResource = {
+  id: null,
+  liveThreadId: null,
+  spaceId: null,
+  status: 'idle',
+  isLive: false,
+  playbackUrl: null,
+  startedAt: null,
+  endedAt: null,
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined)
@@ -138,6 +161,10 @@ export function AdminProvider({ children }: PropsWithChildren) {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
   const [selectedSpace, setSelectedSpace] = useState<SpaceResource | null>(null)
   const [selectedMembership, setSelectedMembership] = useState<MembershipResource | null>(null)
+  const [liveThread, setLiveThread] = useState<LiveThreadResource | null>(null)
+  const [liveStream, setLiveStream] = useState<LiveStreamResource>(idleLiveStream)
+  const [livePermissions, setLivePermissions] = useState<LivePermissionsResource | null>(null)
+  const [liveBroadcast, setLiveBroadcast] = useState<LiveBroadcastResource | null>(null)
   const [joinRequests, setJoinRequests] = useState<AdminJoinRequestItem[]>([])
   const [members, setMembers] = useState<AdminMemberItem[]>([])
   const [posts, setPosts] = useState<PostResource[]>([])
@@ -168,6 +195,10 @@ export function AdminProvider({ children }: PropsWithChildren) {
   const clearSpaceState = useCallback(() => {
     setSelectedSpace(null)
     setSelectedMembership(null)
+    setLiveThread(null)
+    setLiveStream(idleLiveStream)
+    setLivePermissions(null)
+    setLiveBroadcast(null)
     setJoinRequests([])
     setMembers([])
     setPosts([])
@@ -177,8 +208,9 @@ export function AdminProvider({ children }: PropsWithChildren) {
 
   const loadAdminData = useCallback(async (spaceId: string) => {
     const service = serviceRef.current
-    const [spaceDetail, joinRequestItems, memberList, postList, whisperList, reportList] = await Promise.all([
+    const [spaceDetail, liveState, joinRequestItems, memberList, postList, whisperList, reportList] = await Promise.all([
       service.getAdminSpace(spaceId),
+      service.getLiveThread(spaceId),
       service.getJoinRequests(spaceId),
       service.getMembers(spaceId, { limit: 100 }),
       service.getAdminPosts(spaceId),
@@ -188,6 +220,9 @@ export function AdminProvider({ children }: PropsWithChildren) {
 
     setSelectedSpace(spaceDetail.space)
     setSelectedMembership(spaceDetail.membership)
+    setLiveThread(liveState.liveThread)
+    setLiveStream(liveState.liveStream)
+    setLivePermissions(liveState.permissions)
     setJoinRequests(joinRequestItems)
     setMembers(memberList.data)
     setPosts(postList.data)
@@ -288,6 +323,10 @@ export function AdminProvider({ children }: PropsWithChildren) {
       selectedSpaceId,
       selectedSpace,
       selectedMembership,
+      liveThread,
+      liveStream,
+      livePermissions,
+      liveBroadcast,
       joinRequests,
       members,
       posts,
@@ -390,6 +429,53 @@ export function AdminProvider({ children }: PropsWithChildren) {
           await bootstrap(selectedSpaceId)
         })
       },
+      startLiveThread: async () => {
+        if (!selectedSpaceId) {
+          return
+        }
+        await runAction(async () => {
+          const result = await serviceRef.current.startLiveThread(selectedSpaceId)
+          setLiveThread(result.liveThread)
+          setLiveStream(result.liveStream)
+          setLivePermissions(result.permissions)
+        })
+      },
+      closeLiveThread: async () => {
+        if (!selectedSpaceId) {
+          return
+        }
+        await runAction(async () => {
+          const result = await serviceRef.current.closeLiveThread(selectedSpaceId)
+          setLiveThread(result.liveThread)
+          setLiveStream(result.liveStream)
+          setLivePermissions(result.permissions)
+          setLiveBroadcast(null)
+        })
+      },
+      startLiveStream: async () => {
+        if (!selectedSpaceId) {
+          return
+        }
+        await runAction(async () => {
+          const result = await serviceRef.current.startLiveStream(selectedSpaceId)
+          setLiveThread(result.liveThread)
+          setLiveStream(result.liveStream)
+          setLivePermissions(result.permissions)
+          setLiveBroadcast(result.broadcast)
+        })
+      },
+      endLiveStream: async () => {
+        if (!selectedSpaceId) {
+          return
+        }
+        await runAction(async () => {
+          const result = await serviceRef.current.endLiveStream(selectedSpaceId)
+          setLiveThread(result.liveThread)
+          setLiveStream(result.liveStream)
+          setLivePermissions(result.permissions)
+          setLiveBroadcast(null)
+        })
+      },
       resolveReport: async (reportId, input) => {
         await runAction(async () => {
           await serviceRef.current.resolveReport(reportId, input)
@@ -429,6 +515,10 @@ export function AdminProvider({ children }: PropsWithChildren) {
       loading,
       metrics,
       members,
+      livePermissions,
+      liveBroadcast,
+      liveStream,
+      liveThread,
       notificationSettings,
       posts,
       profile,

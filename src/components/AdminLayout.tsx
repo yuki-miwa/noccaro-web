@@ -8,6 +8,7 @@ const navigationItems = [
   { to: '/space-settings', label: 'スペース設定' },
   { to: '/members', label: 'メンバー管理' },
   { to: '/posts', label: 'オーナー投稿' },
+  { to: '/live', label: 'ライブ配信' },
   { to: '/whispers', label: 'Whisper管理' },
   { to: '/reports', label: '通報対応' },
 ]

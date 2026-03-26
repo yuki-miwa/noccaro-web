@@ -15,6 +15,7 @@ import type {
   SystemAdminUser,
   SystemAuditLog,
   SystemDashboardMetrics,
+  SystemLiveSummary,
   SystemReportSummary,
   SystemSpaceCreationRequestSummary,
   SystemSpaceSummary,
@@ -30,6 +31,7 @@ import type {
   ReviewSpaceCreationRequestInput,
   ResolveSystemReportInput,
   SystemAdminService,
+  SystemLiveListQuery,
 } from '../services/systemAdminService'
 import { ApiClientError } from '../../services/httpClient'
 import { SystemAdminApiError } from '../services/mockSystemAdminService'
@@ -52,6 +54,7 @@ interface SystemAdminContextValue {
   creationRequests: SystemSpaceCreationRequestSummary[]
   postSpaceId: string | null
   posts: SystemAdminPostItem[]
+  liveSummaries: SystemLiveSummary[]
   users: SystemUserSummary[]
   reports: SystemReportSummary[]
   auditLogs: SystemAuditLog[]
@@ -69,6 +72,8 @@ interface SystemAdminContextValue {
   publishPost: (postId: string, notifyMembers: boolean) => Promise<void>
   archivePost: (postId: string) => Promise<void>
   deletePost: (postId: string) => Promise<void>
+  forceCloseLiveThread: (spaceId: string) => Promise<void>
+  forceEndLiveStream: (spaceId: string) => Promise<void>
   updateUser: (userId: string, input: PatchSystemUserInput) => Promise<void>
   resolveReport: (reportId: string, input: ResolveSystemReportInput) => Promise<void>
   resetMock: () => Promise<void>
@@ -102,6 +107,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
   const [creationRequests, setCreationRequests] = useState<SystemSpaceCreationRequestSummary[]>([])
   const [postSpaceId, setPostSpaceId] = useState<string | null>(storage.getItem(POST_SPACE_KEY))
   const [posts, setPosts] = useState<SystemAdminPostItem[]>([])
+  const [liveSummaries, setLiveSummaries] = useState<SystemLiveSummary[]>([])
   const [users, setUsers] = useState<SystemUserSummary[]>([])
   const [reports, setReports] = useState<SystemReportSummary[]>([])
   const [auditLogs, setAuditLogs] = useState<SystemAuditLog[]>([])
@@ -113,6 +119,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
     setCreationRequests([])
     setPostSpaceId(null)
     setPosts([])
+    setLiveSummaries([])
     setUsers([])
     setReports([])
     setAuditLogs([])
@@ -130,11 +137,12 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
         return
       }
 
-      const [meResult, dashboardResult, spaceResult, creationRequestResult, userResult, reportResult, auditResult] = await Promise.all([
+      const [meResult, dashboardResult, spaceResult, creationRequestResult, liveResult, userResult, reportResult, auditResult] = await Promise.all([
         service.getMe(),
         service.getDashboard(),
         service.getSpaces({ limit: 100 }),
         service.getSpaceCreationRequests({ status: 'all', limit: 100 }),
+        service.getLiveThreads({ status: 'active', limit: 100 } satisfies SystemLiveListQuery),
         service.getUsers({ limit: 100 }),
         service.getReports({ limit: 100 }),
         service.getAuditLogs(),
@@ -144,6 +152,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       setDashboard(dashboardResult)
       setSpaces(spaceResult.data)
       setCreationRequests(creationRequestResult.data)
+      setLiveSummaries(liveResult.data)
       setUsers(userResult.data)
       setReports(reportResult.data)
       setAuditLogs(auditResult.data)
@@ -218,6 +227,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
       creationRequests,
       postSpaceId,
       posts,
+      liveSummaries,
       users,
       reports,
       auditLogs,
@@ -320,6 +330,18 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
           await bootstrap(postSpaceId)
         })
       },
+      forceCloseLiveThread: async (spaceId) => {
+        await runAction(async () => {
+          await serviceRef.current.forceCloseLiveThread(spaceId)
+          await bootstrap(postSpaceId)
+        })
+      },
+      forceEndLiveStream: async (spaceId) => {
+        await runAction(async () => {
+          await serviceRef.current.forceEndLiveStream(spaceId)
+          await bootstrap(postSpaceId)
+        })
+      },
       updateUser: async (userId, input) => {
         await runAction(async () => {
           await serviceRef.current.patchUser(userId, input)
@@ -341,7 +363,23 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
         })
       },
     }),
-    [auditLogs, bootstrap, clearState, creationRequests, dashboard, error, loading, postSpaceId, posts, ready, reports, spaces, user, users],
+    [
+      auditLogs,
+      bootstrap,
+      clearState,
+      creationRequests,
+      dashboard,
+      error,
+      liveSummaries,
+      loading,
+      postSpaceId,
+      posts,
+      ready,
+      reports,
+      spaces,
+      user,
+      users,
+    ],
   )
 
   return <SystemAdminContext.Provider value={value}>{children}</SystemAdminContext.Provider>

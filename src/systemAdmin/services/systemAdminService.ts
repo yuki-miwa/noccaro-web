@@ -12,6 +12,7 @@ import type {
   SystemDashboardMetrics,
   SystemAdminPostItem,
   SystemSpaceCreationRequestSummary,
+  SystemLiveSummary,
   SystemReportSummary,
   SystemSpaceResource,
   SystemSpaceStatus,
@@ -94,6 +95,12 @@ export interface SystemPostListQuery {
   limit?: number
 }
 
+export interface SystemLiveListQuery {
+  status?: 'active' | 'all'
+  cursor?: string | null
+  limit?: number
+}
+
 export interface CreateOrUpdateSystemPostInput {
   category?: 'operation'
   audienceType?: PostAudienceType
@@ -141,5 +148,8 @@ export interface SystemAdminService {
   getReports(query?: SystemReportListQuery): Promise<{ data: SystemReportSummary[]; meta: ApiListMeta }>
   resolveReport(reportId: string, input: ResolveSystemReportInput): Promise<SystemReportSummary>
   getAuditLogs(): Promise<{ data: SystemAuditLog[]; meta: ApiListMeta }>
+  getLiveThreads(query?: SystemLiveListQuery): Promise<{ data: SystemLiveSummary[]; meta: ApiListMeta }>
+  forceCloseLiveThread(spaceId: string): Promise<SystemLiveSummary>
+  forceEndLiveStream(spaceId: string): Promise<SystemLiveSummary>
   resetMock?(): Promise<void>
 }

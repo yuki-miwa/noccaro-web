@@ -5,6 +5,7 @@ import { AdminProvider, useAdminContext } from './context/AdminContext'
 import { DashboardPage } from './pages/DashboardPage'
 import { AccountPage } from './pages/AccountPage'
 import { LoginPage } from './pages/LoginPage'
+import { LivePage } from './pages/LivePage'
 import { MembersPage } from './pages/MembersPage'
 import { PostsPage } from './pages/PostsPage'
 import { ReportsPage } from './pages/ReportsPage'
@@ -14,6 +15,7 @@ import { SystemAdminLayout } from './systemAdmin/components/SystemAdminLayout'
 import { SystemAdminProvider, useSystemAdminContext } from './systemAdmin/context/SystemAdminContext'
 import { SystemAuditPage } from './systemAdmin/pages/SystemAuditPage'
 import { SystemDashboardPage } from './systemAdmin/pages/SystemDashboardPage'
+import { SystemLivePage } from './systemAdmin/pages/SystemLivePage'
 import { SystemLoginPage } from './systemAdmin/pages/SystemLoginPage'
 import { SystemPostsPage } from './systemAdmin/pages/SystemPostsPage'
 import { SystemReportsPage } from './systemAdmin/pages/SystemReportsPage'
@@ -62,6 +64,7 @@ function OwnerAdminRoutes() {
             <Route path="space-settings" element={<SpaceSettingsPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="posts" element={<PostsPage />} />
+            <Route path="live" element={<LivePage />} />
             <Route path="whispers" element={<WhispersPage />} />
             <Route path="reports" element={<ReportsPage />} />
           </Route>
@@ -102,6 +105,7 @@ function SystemAdminRoutes() {
             <Route path="dashboard" element={<SystemDashboardPage />} />
             <Route path="spaces" element={<SystemSpacesPage />} />
             <Route path="posts" element={<SystemPostsPage />} />
+            <Route path="live" element={<SystemLivePage />} />
             <Route path="users" element={<SystemUsersPage />} />
             <Route path="reports" element={<SystemReportsPage />} />
             <Route path="audit" element={<SystemAuditPage />} />

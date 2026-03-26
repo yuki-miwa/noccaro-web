@@ -4,6 +4,7 @@ import { createInitialSystemAdminState } from '../data/mockSystemAdminData'
 import type {
   SystemAdminPostItem,
   SystemAdminAuthResult,
+  SystemLiveSummary,
   SystemAdminMeResult,
   SystemAuditLog,
   SystemDashboardMetrics,
@@ -22,6 +23,7 @@ import type {
   ReviewSpaceCreationRequestInput,
   ResolveSystemReportInput,
   SystemAdminLoginInput,
+  SystemLiveListQuery,
   SystemAdminService,
   SystemPostListQuery,
   SystemReportListQuery,
@@ -637,6 +639,39 @@ export class MockSystemAdminService implements SystemAdminService {
       data: items,
       meta: listMeta(items),
     }
+  }
+
+  async getLiveThreads(query?: SystemLiveListQuery): Promise<{ data: SystemLiveSummary[]; meta: ApiListMeta }> {
+    this.requireCurrentAdmin()
+    const items: SystemLiveSummary[] = []
+    return {
+      data: items,
+      meta: listMeta(items, query?.limit),
+    }
+  }
+
+  async forceCloseLiveThread(spaceId: string): Promise<SystemLiveSummary> {
+    this.requireCurrentAdmin()
+    const summary = this.toSpaceSummary(spaceId)
+    return {
+      space: summary.space,
+      primaryOwner: summary.primaryOwner,
+      liveThread: null,
+      liveStream: {
+        id: null,
+        liveThreadId: null,
+        spaceId: null,
+        status: 'idle',
+        isLive: false,
+        playbackUrl: null,
+        startedAt: null,
+        endedAt: null,
+      },
+    }
+  }
+
+  async forceEndLiveStream(spaceId: string): Promise<SystemLiveSummary> {
+    return this.forceCloseLiveThread(spaceId)
   }
 
   async resetMock(): Promise<void> {

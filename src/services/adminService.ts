@@ -5,6 +5,8 @@ import type {
   ApiListMeta,
   AuthResult,
   JoinedSpacesResult,
+  LiveStreamStartResult,
+  LiveThreadStateResult,
   MeResult,
   MembershipResource,
   NotificationSettingsResource,
@@ -117,6 +119,12 @@ export interface AdminService {
   publishAdminPost(postId: string, notifyMembers: boolean): Promise<PostResource>
   archiveAdminPost(postId: string): Promise<PostResource>
   deleteAdminPost(postId: string): Promise<void>
+  getLiveThread(spaceId: string): Promise<LiveThreadStateResult>
+  getLiveStream(spaceId: string): Promise<LiveThreadStateResult>
+  startLiveThread(spaceId: string): Promise<LiveThreadStateResult>
+  closeLiveThread(spaceId: string): Promise<LiveThreadStateResult>
+  startLiveStream(spaceId: string): Promise<LiveStreamStartResult>
+  endLiveStream(spaceId: string): Promise<LiveThreadStateResult>
   getWhispers(
     spaceId: string,
     query?: WhisperListQuery,

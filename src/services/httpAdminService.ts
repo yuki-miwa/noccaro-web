@@ -7,6 +7,8 @@ import type {
   ApiResponse,
   AuthResult,
   JoinedSpacesResult,
+  LiveStreamStartResult,
+  LiveThreadStateResult,
   MeResult,
   MembershipResource,
   NotificationSettingsResource,
@@ -193,6 +195,52 @@ export class HttpAdminService implements AdminService {
 
   async deleteAdminPost(postId: string): Promise<void> {
     await this.client.request<void>(`/api/v1/admin/posts/${postId}`, { method: 'DELETE' })
+  }
+
+  async getLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+    const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
+      `/api/v1/spaces/${spaceId}/live-thread`,
+    )
+    return response.data
+  }
+
+  async getLiveStream(spaceId: string): Promise<LiveThreadStateResult> {
+    const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
+      `/api/v1/spaces/${spaceId}/live-stream`,
+    )
+    return response.data
+  }
+
+  async startLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+    const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
+      `/api/v1/spaces/${spaceId}/live-thread/start`,
+      { method: 'POST' },
+    )
+    return response.data
+  }
+
+  async closeLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+    const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
+      `/api/v1/spaces/${spaceId}/live-thread/close`,
+      { method: 'POST' },
+    )
+    return response.data
+  }
+
+  async startLiveStream(spaceId: string): Promise<LiveStreamStartResult> {
+    const response = await this.client.request<ApiResponse<LiveStreamStartResult>>(
+      `/api/v1/spaces/${spaceId}/live-stream/start`,
+      { method: 'POST' },
+    )
+    return response.data
+  }
+
+  async endLiveStream(spaceId: string): Promise<LiveThreadStateResult> {
+    const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
+      `/api/v1/spaces/${spaceId}/live-stream/end`,
+      { method: 'POST' },
+    )
+    return response.data
   }
 
   async getWhispers(
