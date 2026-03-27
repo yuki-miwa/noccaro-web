@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAdminContext } from '../context/AdminContext'
+import { toDatetimeLocalValue, toLocalOffsetIsoString } from '../utils/datetime'
 import { formatIso } from '../utils/format'
 import type { LiveLocationInput } from '../services/adminService'
 
@@ -31,24 +32,6 @@ const eligibilityLabel: Record<string, string> = {
   LIVE_THREAD_WINDOW_EXPIRED: '開始可能時間を過ぎています。スケジュールを更新してください。',
   LIVE_THREAD_OUT_OF_AREA: '開始エリア外です。設定した半径の内側に入ってから開始してください。',
   LIVE_THREAD_ALREADY_ACTIVE: 'ライブスレッドはすでに開始済みです。',
-}
-
-function toDatetimeLocal(value: string | null): string {
-  if (!value) {
-    return ''
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
-}
-
-function toApiDateTime(value: string): string {
-  return new Date(value).toISOString()
 }
 
 function formatDistance(distanceMeters: number | null | undefined): string {
@@ -115,8 +98,8 @@ export function LivePage() {
     }
 
     setForm({
-      startsAt: toDatetimeLocal(liveSchedule.startsAt),
-      endsAt: toDatetimeLocal(liveSchedule.endsAt),
+      startsAt: toDatetimeLocalValue(liveSchedule.startsAt),
+      endsAt: toDatetimeLocalValue(liveSchedule.endsAt),
       areaCenterLat: liveSchedule.areaCenterLat.toString(),
       areaCenterLng: liveSchedule.areaCenterLng.toString(),
       areaRadiusM: liveSchedule.areaRadiusM.toString(),
@@ -173,8 +156,8 @@ export function LivePage() {
   const handleSaveSchedule = async () => {
     setScheduleMessage(null)
     await updateLiveThreadSchedule({
-      startsAt: toApiDateTime(form.startsAt),
-      endsAt: toApiDateTime(form.endsAt),
+      startsAt: toLocalOffsetIsoString(form.startsAt),
+      endsAt: toLocalOffsetIsoString(form.endsAt),
       areaCenterLat: Number(form.areaCenterLat),
       areaCenterLng: Number(form.areaCenterLng),
       areaRadiusM: Number(form.areaRadiusM),
