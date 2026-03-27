@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LiveAreaMapPicker } from '../components/LiveAreaMapPicker'
 import { useAdminContext } from '../context/AdminContext'
 import { toDatetimeLocalValue, toLocalOffsetIsoString } from '../utils/datetime'
 import { formatIso } from '../utils/format'
@@ -125,10 +126,22 @@ export function LivePage() {
   const canSaveSchedule = Boolean(
     form.startsAt && form.endsAt && form.areaCenterLat && form.areaCenterLng && form.areaRadiusM,
   )
+  const centerLat = form.areaCenterLat ? Number(form.areaCenterLat) : null
+  const centerLng = form.areaCenterLng ? Number(form.areaCenterLng) : null
+  const radiusM = form.areaRadiusM ? Number(form.areaRadiusM) : 150
 
   const handleScheduleField = (field: keyof LiveScheduleFormState, value: string) => {
     setScheduleMessage(null)
     setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const handlePickAreaCenter = (lat: number, lng: number) => {
+    setScheduleMessage('地図上で開始エリア中心を更新しました。必要なら半径を調整して保存してください。')
+    setForm((current) => ({
+      ...current,
+      areaCenterLat: lat.toFixed(6),
+      areaCenterLng: lng.toFixed(6),
+    }))
   }
 
   const resolveLocation = async () => {
@@ -320,6 +333,14 @@ export function LivePage() {
             />
           </label>
         </div>
+        <LiveAreaMapPicker
+          centerLat={centerLat}
+          centerLng={centerLng}
+          radiusM={radiusM}
+          currentLat={location?.currentLat ?? null}
+          currentLng={location?.currentLng ?? null}
+          onPick={handlePickAreaCenter}
+        />
         <div className="actions-grid">
           <button type="button" onClick={() => void handleAction(handleUseCurrentLocationForArea)} disabled={loading}>
             現在地を開始エリア中心に反映

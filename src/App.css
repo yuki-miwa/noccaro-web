@@ -715,6 +715,18 @@ button:disabled {
   line-height: 1.5;
 }
 
+.map-picker-shell {
+  margin-top: 16px;
+}
+
+.map-picker-canvas {
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid #d6e0f2;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
 @media (max-width: 1024px) {
   .stat-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
