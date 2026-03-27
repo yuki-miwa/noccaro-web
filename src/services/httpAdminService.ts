@@ -199,6 +199,13 @@ export class HttpAdminService implements AdminService {
     await this.client.request<void>(`/api/v1/admin/posts/${postId}`, { method: 'DELETE' })
   }
 
+  async getAdminLiveSchedule(spaceId: string): Promise<LiveThreadStateResult> {
+    const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
+      `/api/v1/admin/spaces/${spaceId}/live-thread-schedule`,
+    )
+    return response.data
+  }
+
   async getLiveThread(spaceId: string, location?: Partial<LiveLocationInput>): Promise<LiveThreadStateResult> {
     const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
       `/api/v1/spaces/${spaceId}/live-thread`,
@@ -233,6 +240,16 @@ export class HttpAdminService implements AdminService {
       {
         method: 'PATCH',
         body: JSON.stringify(input),
+      },
+    )
+    return response.data
+  }
+
+  async cancelLiveThreadSchedule(spaceId: string): Promise<LiveThreadStateResult> {
+    const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
+      `/api/v1/admin/spaces/${spaceId}/live-thread-schedule`,
+      {
+        method: 'DELETE',
       },
     )
     return response.data

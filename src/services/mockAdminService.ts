@@ -458,6 +458,14 @@ export class MockAdminService implements AdminService {
     return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId, undefined, undefined, location)
   }
 
+  async getAdminLiveSchedule(spaceId: string): Promise<LiveThreadStateResult> {
+    const snapshot = await this.getSnapshotForSpace(spaceId)
+    const membership = this.getCurrentSpaceMembership(snapshot)
+    this.assertAdminMembership(membership)
+
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId)
+  }
+
   async getLiveStream(spaceId: string, location?: Partial<LiveLocationInput>): Promise<LiveThreadStateResult> {
     return this.getLiveThread(spaceId, location)
   }
@@ -482,6 +490,30 @@ export class MockAdminService implements AdminService {
       updatedAt: now,
     })
     this.liveSequence += 1
+
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId)
+  }
+
+  async cancelLiveThreadSchedule(spaceId: string): Promise<LiveThreadStateResult> {
+    const snapshot = await this.getSnapshotForSpace(spaceId)
+    const membership = this.getCurrentSpaceMembership(snapshot)
+    this.assertPrimaryOwnerMembership(membership)
+
+    if (this.liveThreads.get(snapshot.activeSpaceId)?.status === 'active') {
+      throw new MockApiError('LIVE_THREAD_ALREADY_ACTIVE', 'ライブスレッド稼働中は予約を取り消せません。')
+    }
+
+    const schedule = this.liveSchedules.get(snapshot.activeSpaceId)
+    if (!schedule) {
+      throw new MockApiError('LIVE_THREAD_SCHEDULE_NOT_FOUND', 'ライブスレッド予約が設定されていません。')
+    }
+
+    this.liveSchedules.set(snapshot.activeSpaceId, {
+      ...schedule,
+      status: 'cancelled',
+      activatedLiveThreadId: null,
+      updatedAt: nowIso(),
+    })
 
     return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId)
   }
@@ -991,23 +1023,6 @@ export class MockAdminService implements AdminService {
             endedAt: null,
           })
 
-    const permissions: LivePermissionsResource = {
-      canWatch: membership.status === 'active' && thread?.status === 'active',
-      canComment: membership.status === 'active' && thread?.status === 'active',
-      canStartThread:
-        membership.status === 'active' &&
-        membership.role === 'primary_owner' &&
-        thread?.status !== 'active',
-      canCloseThread: membership.status === 'active' && membership.role === 'primary_owner' && thread?.status === 'active',
-      canStartStream:
-        membership.status === 'active' &&
-        membership.role === 'primary_owner' &&
-        thread?.status === 'active' &&
-        stream.status !== 'live',
-      canEndStream: membership.status === 'active' && membership.role === 'primary_owner' && stream.status === 'live',
-      isPrimaryOwner: membership.role === 'primary_owner',
-    }
-
     let reasonCode: string | null = null
     let insideStartArea: boolean | null = null
     let distanceMeters: number | null = null
@@ -1036,11 +1051,33 @@ export class MockAdminService implements AdminService {
       }
     }
 
+    const canAccessLiveNow = membership.status === 'active' && thread?.status === 'active' && insideStartArea === true
+
+    const permissions: LivePermissionsResource = {
+      canWatch: canAccessLiveNow,
+      canComment: canAccessLiveNow,
+      canStartThread: false,
+      canCloseThread: false,
+      canStartStream:
+        membership.status === 'active' &&
+        membership.role === 'primary_owner' &&
+        thread?.status === 'active' &&
+        stream.status !== 'live' &&
+        insideStartArea === true,
+      canEndStream: membership.status === 'active' && membership.role === 'primary_owner' && stream.status === 'live',
+      isPrimaryOwner: membership.role === 'primary_owner',
+    }
+
     const eligibility: LiveEligibilityResource = {
       canStartThreadNow: reasonCode === null && insideStartArea === true,
+      canAccessLiveNow,
       insideStartArea,
+      insideLiveArea: insideStartArea,
+      insideAudienceArea: insideStartArea,
       distanceMeters,
+      allowedRadiusM: schedule?.areaRadiusM ?? null,
       windowOpen,
+      threadActive: thread?.status === 'active',
       reasonCode,
     }
 

@@ -16,7 +16,7 @@ export type PostCategory = 'owner' | 'operation'
 export type PostAudienceType = 'all_members' | 'targeted_users'
 export type LiveThreadStatus = 'active' | 'closed'
 export type LiveStreamStatus = 'idle' | 'live' | 'ended'
-export type LiveThreadScheduleStatus = 'scheduled' | 'started' | 'expired'
+export type LiveThreadScheduleStatus = 'scheduled' | 'started' | 'expired' | 'cancelled'
 
 export interface ApiListMeta {
   hasMore: boolean
@@ -167,9 +167,14 @@ export interface LivePermissionsResource {
 
 export interface LiveEligibilityResource {
   canStartThreadNow: boolean
+  canAccessLiveNow: boolean
   insideStartArea: boolean | null
+  insideLiveArea: boolean | null
+  insideAudienceArea: boolean | null
   distanceMeters: number | null
+  allowedRadiusM: number | null
   windowOpen: boolean
+  threadActive: boolean
   reasonCode: string | null
 }
 

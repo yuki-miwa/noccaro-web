@@ -32,7 +32,6 @@ import { createAdminService } from '../services/createAdminService'
 import type {
   AdminService,
   CreateOrUpdatePostInput,
-  LiveLocationInput,
   PatchMembershipInput,
   ResolveReportInput,
   UpdateLiveThreadScheduleInput,
@@ -94,12 +93,9 @@ interface AdminContextValue {
   publishPost: (postId: string, notifyMembers: boolean) => Promise<void>
   archivePost: (postId: string) => Promise<void>
   deletePost: (postId: string) => Promise<void>
-  refreshLiveState: (location?: Partial<LiveLocationInput>) => Promise<void>
+  refreshLiveState: () => Promise<void>
   updateLiveThreadSchedule: (input: UpdateLiveThreadScheduleInput) => Promise<void>
-  startLiveThread: (location: LiveLocationInput) => Promise<void>
-  closeLiveThread: () => Promise<void>
-  startLiveStream: () => Promise<void>
-  endLiveStream: () => Promise<void>
+  cancelLiveThreadSchedule: () => Promise<void>
   resolveReport: (reportId: string, input: ResolveReportInput) => Promise<void>
   removeWhisper: (whisperId: string, reason?: string | null) => Promise<void>
   updateProfile: (input: UpdateProfileInput) => Promise<void>
@@ -230,7 +226,7 @@ export function AdminProvider({ children }: PropsWithChildren) {
     const service = serviceRef.current
     const [spaceDetail, liveState, joinRequestItems, memberList, postList, whisperList, reportList] = await Promise.all([
       service.getAdminSpace(spaceId),
-      service.getLiveThread(spaceId),
+      service.getAdminLiveSchedule(spaceId),
       service.getJoinRequests(spaceId),
       service.getMembers(spaceId, { limit: 100 }),
       service.getAdminPosts(spaceId),
@@ -453,12 +449,12 @@ export function AdminProvider({ children }: PropsWithChildren) {
           await bootstrap(selectedSpaceId)
         })
       },
-      refreshLiveState: async (location) => {
+      refreshLiveState: async () => {
         if (!selectedSpaceId) {
           return
         }
         await runAction(async () => {
-          const result = await serviceRef.current.getLiveThread(selectedSpaceId, location)
+          const result = await serviceRef.current.getAdminLiveSchedule(selectedSpaceId)
           setLiveSchedule(result.scheduledThread)
           setLiveThread(result.liveThread)
           setLiveStream(result.liveStream)
@@ -479,53 +475,12 @@ export function AdminProvider({ children }: PropsWithChildren) {
           setLiveEligibility(result.eligibility)
         })
       },
-      startLiveThread: async (location) => {
+      cancelLiveThreadSchedule: async () => {
         if (!selectedSpaceId) {
           return
         }
         await runAction(async () => {
-          const result = await serviceRef.current.startLiveThread(selectedSpaceId, location)
-          setLiveSchedule(result.scheduledThread)
-          setLiveThread(result.liveThread)
-          setLiveStream(result.liveStream)
-          setLivePermissions(result.permissions)
-          setLiveEligibility(result.eligibility)
-        })
-      },
-      closeLiveThread: async () => {
-        if (!selectedSpaceId) {
-          return
-        }
-        await runAction(async () => {
-          const result = await serviceRef.current.closeLiveThread(selectedSpaceId)
-          setLiveSchedule(result.scheduledThread)
-          setLiveThread(result.liveThread)
-          setLiveStream(result.liveStream)
-          setLivePermissions(result.permissions)
-          setLiveEligibility(result.eligibility)
-          setLiveBroadcast(null)
-        })
-      },
-      startLiveStream: async () => {
-        if (!selectedSpaceId) {
-          return
-        }
-        await runAction(async () => {
-          const result = await serviceRef.current.startLiveStream(selectedSpaceId)
-          setLiveSchedule(result.scheduledThread)
-          setLiveThread(result.liveThread)
-          setLiveStream(result.liveStream)
-          setLivePermissions(result.permissions)
-          setLiveEligibility(result.eligibility)
-          setLiveBroadcast(result.broadcast)
-        })
-      },
-      endLiveStream: async () => {
-        if (!selectedSpaceId) {
-          return
-        }
-        await runAction(async () => {
-          const result = await serviceRef.current.endLiveStream(selectedSpaceId)
+          const result = await serviceRef.current.cancelLiveThreadSchedule(selectedSpaceId)
           setLiveSchedule(result.scheduledThread)
           setLiveThread(result.liveThread)
           setLiveStream(result.liveStream)
