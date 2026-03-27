@@ -21,11 +21,13 @@ import type {
 import type {
   AdminService,
   CreateOrUpdatePostInput,
+  LiveLocationInput,
   LoginInput,
   MemberListQuery,
   PatchMembershipInput,
   ReportListQuery,
   ResolveReportInput,
+  UpdateLiveThreadScheduleInput,
   UpdateProfileInput,
   UpdateSpaceInput,
   WhisperListQuery,
@@ -197,24 +199,52 @@ export class HttpAdminService implements AdminService {
     await this.client.request<void>(`/api/v1/admin/posts/${postId}`, { method: 'DELETE' })
   }
 
-  async getLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+  async getLiveThread(spaceId: string, location?: Partial<LiveLocationInput>): Promise<LiveThreadStateResult> {
     const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
       `/api/v1/spaces/${spaceId}/live-thread`,
+      undefined,
+      location
+        ? {
+            currentLat: location.currentLat,
+            currentLng: location.currentLng,
+          }
+        : undefined,
     )
     return response.data
   }
 
-  async getLiveStream(spaceId: string): Promise<LiveThreadStateResult> {
+  async getLiveStream(spaceId: string, location?: Partial<LiveLocationInput>): Promise<LiveThreadStateResult> {
     const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
       `/api/v1/spaces/${spaceId}/live-stream`,
+      undefined,
+      location
+        ? {
+            currentLat: location.currentLat,
+            currentLng: location.currentLng,
+          }
+        : undefined,
     )
     return response.data
   }
 
-  async startLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+  async updateLiveThreadSchedule(spaceId: string, input: UpdateLiveThreadScheduleInput): Promise<LiveThreadStateResult> {
+    const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
+      `/api/v1/admin/spaces/${spaceId}/live-thread-schedule`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    )
+    return response.data
+  }
+
+  async startLiveThread(spaceId: string, location: LiveLocationInput): Promise<LiveThreadStateResult> {
     const response = await this.client.request<ApiResponse<LiveThreadStateResult>>(
       `/api/v1/spaces/${spaceId}/live-thread/start`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+        body: JSON.stringify(location),
+      },
     )
     return response.data
   }

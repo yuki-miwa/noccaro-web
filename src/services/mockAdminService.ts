@@ -6,9 +6,11 @@ import type {
   AuthResult,
   JoinedSpaceSummary,
   JoinedSpacesResult,
+  LiveEligibilityResource,
   LivePermissionsResource,
   LiveStreamResource,
   LiveStreamStartResult,
+  LiveThreadScheduleResource,
   LiveThreadResource,
   LiveThreadStateResult,
   MeResult,
@@ -34,11 +36,13 @@ import type {
 import type {
   AdminService,
   CreateOrUpdatePostInput,
+  LiveLocationInput,
   LoginInput,
   MemberListQuery,
   PatchMembershipInput,
   ReportListQuery,
   ResolveReportInput,
+  UpdateLiveThreadScheduleInput,
   UpdateProfileInput,
   UpdateSpaceInput,
   WhisperListQuery,
@@ -74,6 +78,7 @@ export class MockAdminService implements AdminService {
       recipientUserIds: string[]
     }
   >()
+  private readonly liveSchedules = new Map<number, LiveThreadScheduleResource>()
   private readonly liveThreads = new Map<number, LiveThreadResource>()
   private readonly liveStreams = new Map<number, LiveStreamResource>()
   private liveSequence = 1
@@ -445,26 +450,73 @@ export class MockAdminService implements AdminService {
     await this.engine.deletePost(post.id)
   }
 
-  async getLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+  async getLiveThread(spaceId: string, location?: Partial<LiveLocationInput>): Promise<LiveThreadStateResult> {
     const snapshot = await this.getSnapshotForSpace(spaceId)
     const membership = this.getCurrentSpaceMembership(snapshot)
     this.assertAdminMembership(membership)
 
-    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId)
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId, undefined, undefined, location)
   }
 
-  async getLiveStream(spaceId: string): Promise<LiveThreadStateResult> {
-    return this.getLiveThread(spaceId)
+  async getLiveStream(spaceId: string, location?: Partial<LiveLocationInput>): Promise<LiveThreadStateResult> {
+    return this.getLiveThread(spaceId, location)
   }
 
-  async startLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
+  async updateLiveThreadSchedule(spaceId: string, input: UpdateLiveThreadScheduleInput): Promise<LiveThreadStateResult> {
     const snapshot = await this.getSnapshotForSpace(spaceId)
     const membership = this.getCurrentSpaceMembership(snapshot)
     this.assertPrimaryOwnerMembership(membership)
 
+    const now = nowIso()
+    this.liveSchedules.set(snapshot.activeSpaceId, {
+      id: `live_schedule_${String(this.liveSequence).padStart(3, '0')}`,
+      spaceId,
+      status: 'scheduled',
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      areaCenterLat: input.areaCenterLat,
+      areaCenterLng: input.areaCenterLng,
+      areaRadiusM: input.areaRadiusM,
+      activatedLiveThreadId: null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    this.liveSequence += 1
+
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId)
+  }
+
+  async startLiveThread(spaceId: string, location: LiveLocationInput): Promise<LiveThreadStateResult> {
+    const snapshot = await this.getSnapshotForSpace(spaceId)
+    const membership = this.getCurrentSpaceMembership(snapshot)
+    this.assertPrimaryOwnerMembership(membership)
+    const schedule = this.liveSchedules.get(snapshot.activeSpaceId) ?? null
+
+    if (!schedule) {
+      throw new MockApiError('LIVE_THREAD_SCHEDULE_NOT_FOUND', 'ライブスレッド開始条件が設定されていません。')
+    }
+
+    const now = new Date()
+    if (new Date(schedule.startsAt).getTime() > now.getTime()) {
+      throw new MockApiError('LIVE_THREAD_WINDOW_NOT_OPEN', '開始可能時間前のためライブスレッドを開始できません。')
+    }
+    if (new Date(schedule.endsAt).getTime() < now.getTime()) {
+      throw new MockApiError('LIVE_THREAD_WINDOW_EXPIRED', '開始可能時間を過ぎたためライブスレッドを開始できません。')
+    }
+
+    const distanceMeters = this.distanceMeters(
+      schedule.areaCenterLat,
+      schedule.areaCenterLng,
+      location.currentLat,
+      location.currentLng,
+    )
+    if (distanceMeters > schedule.areaRadiusM) {
+      throw new MockApiError('LIVE_THREAD_OUT_OF_AREA', '開始エリア外のためライブスレッドを開始できません。')
+    }
+
     if (!this.liveThreads.has(snapshot.activeSpaceId)) {
       const now = nowIso()
-      this.liveThreads.set(snapshot.activeSpaceId, {
+      const thread: LiveThreadResource = {
         id: `live_thread_${String(this.liveSequence).padStart(3, '0')}`,
         spaceId,
         status: 'active',
@@ -472,11 +524,18 @@ export class MockAdminService implements AdminService {
         endsAt: null,
         createdAt: now,
         updatedAt: now,
+      }
+      this.liveThreads.set(snapshot.activeSpaceId, thread)
+      this.liveSchedules.set(snapshot.activeSpaceId, {
+        ...schedule,
+        status: 'started',
+        activatedLiveThreadId: thread.id,
+        updatedAt: now,
       })
       this.liveSequence += 1
     }
 
-    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId)
+    return this.buildLiveState(spaceId, membership, snapshot.activeSpaceId, undefined, undefined, location)
   }
 
   async closeLiveThread(spaceId: string): Promise<LiveThreadStateResult> {
@@ -502,7 +561,26 @@ export class MockAdminService implements AdminService {
     this.assertPrimaryOwnerMembership(membership)
 
     if (!this.liveThreads.has(snapshot.activeSpaceId)) {
-      await this.startLiveThread(spaceId)
+      const schedule =
+        this.liveSchedules.get(snapshot.activeSpaceId) ??
+        {
+          id: `live_schedule_${String(this.liveSequence).padStart(3, '0')}`,
+          spaceId,
+          status: 'scheduled' as const,
+          startsAt: nowIso(),
+          endsAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          areaCenterLat: 35.6800,
+          areaCenterLng: 139.7670,
+          areaRadiusM: 150,
+          activatedLiveThreadId: null,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        }
+      this.liveSchedules.set(snapshot.activeSpaceId, schedule)
+      await this.startLiveThread(spaceId, {
+        currentLat: schedule.areaCenterLat,
+        currentLng: schedule.areaCenterLng,
+      })
     }
 
     if (!this.liveStreams.has(snapshot.activeSpaceId)) {
@@ -625,6 +703,9 @@ export class MockAdminService implements AdminService {
   async resetMock(): Promise<void> {
     await this.engine.reset()
     this.postConfigs.clear()
+    this.liveSchedules.clear()
+    this.liveThreads.clear()
+    this.liveStreams.clear()
     if (this.token) {
       await this.restoreSession()
     }
@@ -883,7 +964,9 @@ export class MockAdminService implements AdminService {
     internalSpaceId: number,
     threadOverride?: LiveThreadResource | null,
     streamOverride?: LiveStreamResource | null,
+    location?: Partial<LiveLocationInput>,
   ): LiveThreadStateResult {
+    const schedule = this.liveSchedules.get(internalSpaceId) ?? null
     const thread = threadOverride === undefined ? (this.liveThreads.get(internalSpaceId) ?? null) : threadOverride
     const stream =
       streamOverride === undefined
@@ -925,10 +1008,48 @@ export class MockAdminService implements AdminService {
       isPrimaryOwner: membership.role === 'primary_owner',
     }
 
+    let reasonCode: string | null = null
+    let insideStartArea: boolean | null = null
+    let distanceMeters: number | null = null
+    const windowOpen =
+      schedule !== null &&
+      new Date(schedule.startsAt).getTime() <= Date.now() &&
+      new Date(schedule.endsAt).getTime() >= Date.now()
+
+    if (membership.status !== 'active' || membership.role !== 'primary_owner') {
+      reasonCode = 'FORBIDDEN'
+    } else if (thread?.status === 'active') {
+      reasonCode = 'LIVE_THREAD_ALREADY_ACTIVE'
+    } else if (!schedule) {
+      reasonCode = 'LIVE_THREAD_SCHEDULE_NOT_FOUND'
+    } else if (new Date(schedule.startsAt).getTime() > Date.now()) {
+      reasonCode = 'LIVE_THREAD_WINDOW_NOT_OPEN'
+    } else if (new Date(schedule.endsAt).getTime() < Date.now()) {
+      reasonCode = 'LIVE_THREAD_WINDOW_EXPIRED'
+    } else if (location?.currentLat !== undefined && location.currentLng !== undefined) {
+      distanceMeters = Math.round(
+        this.distanceMeters(schedule.areaCenterLat, schedule.areaCenterLng, location.currentLat, location.currentLng) * 10,
+      ) / 10
+      insideStartArea = distanceMeters <= schedule.areaRadiusM
+      if (!insideStartArea) {
+        reasonCode = 'LIVE_THREAD_OUT_OF_AREA'
+      }
+    }
+
+    const eligibility: LiveEligibilityResource = {
+      canStartThreadNow: reasonCode === null && insideStartArea === true,
+      insideStartArea,
+      distanceMeters,
+      windowOpen,
+      reasonCode,
+    }
+
     return {
+      scheduledThread: schedule,
       liveThread: thread,
       liveStream: stream,
       permissions,
+      eligibility,
       chatPolicy: {
         roomId: 'mock-room',
         endpoint: 'wss://edge.ivschat.ap-northeast-1.amazonaws.com',
@@ -937,6 +1058,21 @@ export class MockAdminService implements AdminService {
       },
       spaceId: publicSpaceId,
     }
+  }
+
+  private distanceMeters(startLat: number, startLng: number, endLat: number, endLng: number): number {
+    const earthRadius = 6371000
+    const toRadians = (value: number) => (value * Math.PI) / 180
+    const dLat = toRadians(endLat - startLat)
+    const dLng = toRadians(endLng - startLng)
+    const lat1 = toRadians(startLat)
+    const lat2 = toRadians(endLat)
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2)
+
+    return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   }
 
   private getPostConfig(postPublicId: string): {

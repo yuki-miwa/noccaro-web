@@ -15,8 +15,10 @@ import type {
   AdminReportItem,
   JoinedSpaceSummary,
   LiveBroadcastResource,
+  LiveEligibilityResource,
   LivePermissionsResource,
   LiveStreamResource,
+  LiveThreadScheduleResource,
   LiveThreadResource,
   MembershipResource,
   NotificationSettingsResource,
@@ -30,8 +32,10 @@ import { createAdminService } from '../services/createAdminService'
 import type {
   AdminService,
   CreateOrUpdatePostInput,
+  LiveLocationInput,
   PatchMembershipInput,
   ResolveReportInput,
+  UpdateLiveThreadScheduleInput,
   UpdateProfileInput,
   UpdateSpaceInput,
 } from '../services/adminService'
@@ -64,9 +68,11 @@ interface AdminContextValue {
   selectedSpaceId: string | null
   selectedSpace: SpaceResource | null
   selectedMembership: MembershipResource | null
+  liveSchedule: LiveThreadScheduleResource | null
   liveThread: LiveThreadResource | null
   liveStream: LiveStreamResource
   livePermissions: LivePermissionsResource | null
+  liveEligibility: LiveEligibilityResource | null
   liveBroadcast: LiveBroadcastResource | null
   joinRequests: AdminJoinRequestItem[]
   members: AdminMemberItem[]
@@ -88,7 +94,9 @@ interface AdminContextValue {
   publishPost: (postId: string, notifyMembers: boolean) => Promise<void>
   archivePost: (postId: string) => Promise<void>
   deletePost: (postId: string) => Promise<void>
-  startLiveThread: () => Promise<void>
+  refreshLiveState: (location?: Partial<LiveLocationInput>) => Promise<void>
+  updateLiveThreadSchedule: (input: UpdateLiveThreadScheduleInput) => Promise<void>
+  startLiveThread: (location: LiveLocationInput) => Promise<void>
   closeLiveThread: () => Promise<void>
   startLiveStream: () => Promise<void>
   endLiveStream: () => Promise<void>
@@ -137,6 +145,14 @@ const localizedErrorMessages: Record<string, string> = {
   cross_space_operation: '別スペースのデータは操作できません。',
   forbidden_target: 'この対象には操作できません。',
   membership_inactive: '現在のメンバー状態では操作できません。',
+  LIVE_THREAD_SCHEDULE_NOT_FOUND: 'ライブスレッド開始条件がまだ設定されていません。',
+  LIVE_THREAD_WINDOW_NOT_OPEN: '開始可能時間前のため、まだライブスレッドを開始できません。',
+  LIVE_THREAD_WINDOW_EXPIRED: '開始可能時間を過ぎたため、ライブスレッドを開始できません。',
+  LIVE_THREAD_OUT_OF_AREA: '開始エリア外にいるため、ライブスレッドを開始できません。',
+  LIVE_THREAD_ALREADY_ACTIVE: 'ライブスレッドはすでに開始されています。',
+  LIVE_THREAD_NOT_ACTIVE: '現在アクティブなライブスレッドがありません。',
+  LIVE_STREAM_UNAVAILABLE: 'ライブ配信の開始条件を満たしていません。',
+  LIVE_CHAT_UNAVAILABLE: 'ライブチャットは現在利用できません。',
 }
 
 function normalizeError(error: unknown): string {
@@ -161,9 +177,11 @@ export function AdminProvider({ children }: PropsWithChildren) {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
   const [selectedSpace, setSelectedSpace] = useState<SpaceResource | null>(null)
   const [selectedMembership, setSelectedMembership] = useState<MembershipResource | null>(null)
+  const [liveSchedule, setLiveSchedule] = useState<LiveThreadScheduleResource | null>(null)
   const [liveThread, setLiveThread] = useState<LiveThreadResource | null>(null)
   const [liveStream, setLiveStream] = useState<LiveStreamResource>(idleLiveStream)
   const [livePermissions, setLivePermissions] = useState<LivePermissionsResource | null>(null)
+  const [liveEligibility, setLiveEligibility] = useState<LiveEligibilityResource | null>(null)
   const [liveBroadcast, setLiveBroadcast] = useState<LiveBroadcastResource | null>(null)
   const [joinRequests, setJoinRequests] = useState<AdminJoinRequestItem[]>([])
   const [members, setMembers] = useState<AdminMemberItem[]>([])
@@ -195,9 +213,11 @@ export function AdminProvider({ children }: PropsWithChildren) {
   const clearSpaceState = useCallback(() => {
     setSelectedSpace(null)
     setSelectedMembership(null)
+    setLiveSchedule(null)
     setLiveThread(null)
     setLiveStream(idleLiveStream)
     setLivePermissions(null)
+    setLiveEligibility(null)
     setLiveBroadcast(null)
     setJoinRequests([])
     setMembers([])
@@ -220,9 +240,11 @@ export function AdminProvider({ children }: PropsWithChildren) {
 
     setSelectedSpace(spaceDetail.space)
     setSelectedMembership(spaceDetail.membership)
+    setLiveSchedule(liveState.scheduledThread)
     setLiveThread(liveState.liveThread)
     setLiveStream(liveState.liveStream)
     setLivePermissions(liveState.permissions)
+    setLiveEligibility(liveState.eligibility)
     setJoinRequests(joinRequestItems)
     setMembers(memberList.data)
     setPosts(postList.data)
@@ -323,9 +345,11 @@ export function AdminProvider({ children }: PropsWithChildren) {
       selectedSpaceId,
       selectedSpace,
       selectedMembership,
+      liveSchedule,
       liveThread,
       liveStream,
       livePermissions,
+      liveEligibility,
       liveBroadcast,
       joinRequests,
       members,
@@ -429,15 +453,43 @@ export function AdminProvider({ children }: PropsWithChildren) {
           await bootstrap(selectedSpaceId)
         })
       },
-      startLiveThread: async () => {
+      refreshLiveState: async (location) => {
         if (!selectedSpaceId) {
           return
         }
         await runAction(async () => {
-          const result = await serviceRef.current.startLiveThread(selectedSpaceId)
+          const result = await serviceRef.current.getLiveThread(selectedSpaceId, location)
+          setLiveSchedule(result.scheduledThread)
           setLiveThread(result.liveThread)
           setLiveStream(result.liveStream)
           setLivePermissions(result.permissions)
+          setLiveEligibility(result.eligibility)
+        })
+      },
+      updateLiveThreadSchedule: async (input) => {
+        if (!selectedSpaceId) {
+          return
+        }
+        await runAction(async () => {
+          const result = await serviceRef.current.updateLiveThreadSchedule(selectedSpaceId, input)
+          setLiveSchedule(result.scheduledThread)
+          setLiveThread(result.liveThread)
+          setLiveStream(result.liveStream)
+          setLivePermissions(result.permissions)
+          setLiveEligibility(result.eligibility)
+        })
+      },
+      startLiveThread: async (location) => {
+        if (!selectedSpaceId) {
+          return
+        }
+        await runAction(async () => {
+          const result = await serviceRef.current.startLiveThread(selectedSpaceId, location)
+          setLiveSchedule(result.scheduledThread)
+          setLiveThread(result.liveThread)
+          setLiveStream(result.liveStream)
+          setLivePermissions(result.permissions)
+          setLiveEligibility(result.eligibility)
         })
       },
       closeLiveThread: async () => {
@@ -446,9 +498,11 @@ export function AdminProvider({ children }: PropsWithChildren) {
         }
         await runAction(async () => {
           const result = await serviceRef.current.closeLiveThread(selectedSpaceId)
+          setLiveSchedule(result.scheduledThread)
           setLiveThread(result.liveThread)
           setLiveStream(result.liveStream)
           setLivePermissions(result.permissions)
+          setLiveEligibility(result.eligibility)
           setLiveBroadcast(null)
         })
       },
@@ -458,9 +512,11 @@ export function AdminProvider({ children }: PropsWithChildren) {
         }
         await runAction(async () => {
           const result = await serviceRef.current.startLiveStream(selectedSpaceId)
+          setLiveSchedule(result.scheduledThread)
           setLiveThread(result.liveThread)
           setLiveStream(result.liveStream)
           setLivePermissions(result.permissions)
+          setLiveEligibility(result.eligibility)
           setLiveBroadcast(result.broadcast)
         })
       },
@@ -470,9 +526,11 @@ export function AdminProvider({ children }: PropsWithChildren) {
         }
         await runAction(async () => {
           const result = await serviceRef.current.endLiveStream(selectedSpaceId)
+          setLiveSchedule(result.scheduledThread)
           setLiveThread(result.liveThread)
           setLiveStream(result.liveStream)
           setLivePermissions(result.permissions)
+          setLiveEligibility(result.eligibility)
           setLiveBroadcast(null)
         })
       },
@@ -516,6 +574,8 @@ export function AdminProvider({ children }: PropsWithChildren) {
       metrics,
       members,
       livePermissions,
+      liveEligibility,
+      liveSchedule,
       liveBroadcast,
       liveStream,
       liveThread,

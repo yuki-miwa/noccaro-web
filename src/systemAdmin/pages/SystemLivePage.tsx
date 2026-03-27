@@ -1,6 +1,14 @@
 import { useSystemAdminContext } from '../context/SystemAdminContext'
 import { formatIso } from '../../utils/format'
 
+function scheduledSummary(item: ReturnType<typeof useSystemAdminContext>['liveSummaries'][number]): string {
+  if (!item.scheduledThread) {
+    return '未設定'
+  }
+
+  return `${item.scheduledThread.status} / ${formatIso(item.scheduledThread.startsAt)} - ${formatIso(item.scheduledThread.endsAt)}`
+}
+
 export function SystemLivePage() {
   const { forceCloseLiveThread, forceEndLiveStream, liveSummaries, loading } = useSystemAdminContext()
 
@@ -12,13 +20,15 @@ export function SystemLivePage() {
           <span>{liveSummaries.length}件</span>
         </div>
         {liveSummaries.length === 0 ? (
-          <p className="empty-text">現在稼働中のライブスレッド / ライブ配信はありません。</p>
+          <p className="empty-text">現在監視対象のライブスレッド設定はありません。</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
                 <th>スペース</th>
                 <th>主オーナー</th>
+                <th>schedule</th>
+                <th>開始エリア</th>
                 <th>ライブスレッド</th>
                 <th>ライブ配信</th>
                 <th>Playback</th>
@@ -35,6 +45,12 @@ export function SystemLivePage() {
                   <td>
                     <strong>{item.primaryOwner.displayName ?? '未設定'}</strong>
                     <div>{item.primaryOwner.email ?? '-'}</div>
+                  </td>
+                  <td>{scheduledSummary(item)}</td>
+                  <td>
+                    {item.scheduledThread
+                      ? `${item.scheduledThread.areaCenterLat.toFixed(4)}, ${item.scheduledThread.areaCenterLng.toFixed(4)} / ${item.scheduledThread.areaRadiusM}m`
+                      : '-'}
                   </td>
                   <td>{item.liveThread ? `active / ${formatIso(item.liveThread.startsAt)}` : 'inactive'}</td>
                   <td>{item.liveStream.isLive ? `live / ${formatIso(item.liveStream.startedAt)}` : item.liveStream.status}</td>

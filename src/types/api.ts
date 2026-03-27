@@ -16,6 +16,7 @@ export type PostCategory = 'owner' | 'operation'
 export type PostAudienceType = 'all_members' | 'targeted_users'
 export type LiveThreadStatus = 'active' | 'closed'
 export type LiveStreamStatus = 'idle' | 'live' | 'ended'
+export type LiveThreadScheduleStatus = 'scheduled' | 'started' | 'expired'
 
 export interface ApiListMeta {
   hasMore: boolean
@@ -127,6 +128,20 @@ export interface LiveThreadResource {
   updatedAt: string
 }
 
+export interface LiveThreadScheduleResource {
+  id: string
+  spaceId: string | null
+  status: LiveThreadScheduleStatus
+  startsAt: string
+  endsAt: string
+  areaCenterLat: number
+  areaCenterLng: number
+  areaRadiusM: number
+  activatedLiveThreadId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface LiveStreamResource {
   id: string | null
   liveThreadId: string | null
@@ -150,6 +165,14 @@ export interface LivePermissionsResource {
   isPrimaryOwner: boolean
 }
 
+export interface LiveEligibilityResource {
+  canStartThreadNow: boolean
+  insideStartArea: boolean | null
+  distanceMeters: number | null
+  windowOpen: boolean
+  reasonCode: string | null
+}
+
 export interface LiveChatPolicyResource {
   roomId: string
   endpoint: string
@@ -158,9 +181,11 @@ export interface LiveChatPolicyResource {
 }
 
 export interface LiveThreadStateResult {
+  scheduledThread: LiveThreadScheduleResource | null
   liveThread: LiveThreadResource | null
   liveStream: LiveStreamResource
   permissions: LivePermissionsResource
+  eligibility: LiveEligibilityResource
   chatPolicy?: LiveChatPolicyResource
   spaceId?: string
 }

@@ -79,6 +79,19 @@ export interface CreateOrUpdatePostInput {
   visibleTo?: string | null
 }
 
+export interface LiveLocationInput {
+  currentLat: number
+  currentLng: number
+}
+
+export interface UpdateLiveThreadScheduleInput {
+  startsAt: string
+  endsAt: string
+  areaCenterLat: number
+  areaCenterLng: number
+  areaRadiusM: number
+}
+
 export interface ResolveReportInput {
   resolutionType: ResolutionType
   note?: string | null
@@ -119,9 +132,10 @@ export interface AdminService {
   publishAdminPost(postId: string, notifyMembers: boolean): Promise<PostResource>
   archiveAdminPost(postId: string): Promise<PostResource>
   deleteAdminPost(postId: string): Promise<void>
-  getLiveThread(spaceId: string): Promise<LiveThreadStateResult>
-  getLiveStream(spaceId: string): Promise<LiveThreadStateResult>
-  startLiveThread(spaceId: string): Promise<LiveThreadStateResult>
+  getLiveThread(spaceId: string, location?: Partial<LiveLocationInput>): Promise<LiveThreadStateResult>
+  getLiveStream(spaceId: string, location?: Partial<LiveLocationInput>): Promise<LiveThreadStateResult>
+  updateLiveThreadSchedule(spaceId: string, input: UpdateLiveThreadScheduleInput): Promise<LiveThreadStateResult>
+  startLiveThread(spaceId: string, location: LiveLocationInput): Promise<LiveThreadStateResult>
   closeLiveThread(spaceId: string): Promise<LiveThreadStateResult>
   startLiveStream(spaceId: string): Promise<LiveStreamStartResult>
   endLiveStream(spaceId: string): Promise<LiveThreadStateResult>

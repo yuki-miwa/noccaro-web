@@ -142,7 +142,7 @@ export function SystemAdminProvider({ children }: PropsWithChildren) {
         service.getDashboard(),
         service.getSpaces({ limit: 100 }),
         service.getSpaceCreationRequests({ status: 'all', limit: 100 }),
-        service.getLiveThreads({ status: 'active', limit: 100 } satisfies SystemLiveListQuery),
+        service.getLiveThreads({ status: 'all', limit: 100 } satisfies SystemLiveListQuery),
         service.getUsers({ limit: 100 }),
         service.getReports({ limit: 100 }),
         service.getAuditLogs(),

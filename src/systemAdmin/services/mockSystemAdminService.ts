@@ -656,6 +656,7 @@ export class MockSystemAdminService implements SystemAdminService {
     return {
       space: summary.space,
       primaryOwner: summary.primaryOwner,
+      scheduledThread: null,
       liveThread: null,
       liveStream: {
         id: null,

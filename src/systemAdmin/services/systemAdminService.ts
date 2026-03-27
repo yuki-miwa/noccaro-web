@@ -96,7 +96,7 @@ export interface SystemPostListQuery {
 }
 
 export interface SystemLiveListQuery {
-  status?: 'active' | 'all'
+  status?: 'active' | 'scheduled' | 'all'
   cursor?: string | null
   limit?: number
 }

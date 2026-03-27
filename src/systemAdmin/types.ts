@@ -1,6 +1,7 @@
 import type {
   ApiListMeta,
   JoinPolicy,
+  LiveThreadScheduleResource,
   LiveStreamResource,
   LiveThreadResource,
   MembershipStatus,
@@ -149,6 +150,7 @@ export interface SystemAdminPostItem {
 export interface SystemLiveSummary {
   space: SystemSpaceResource
   primaryOwner: SystemSpaceOwnerSummary
+  scheduledThread: LiveThreadScheduleResource | null
   liveThread: LiveThreadResource | null
   liveStream: LiveStreamResource
 }

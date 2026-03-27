@@ -680,12 +680,48 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.two-column-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.two-column-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.two-column-form input {
+  border: 1px solid #c5d1e8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.live-location-card {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d6e0f2;
+  background: #f7faff;
+  color: #34466f;
+  display: grid;
+  gap: 4px;
+}
+
+.helper-text {
+  margin: 12px 0 0;
+  color: #52658f;
+  line-height: 1.5;
+}
+
 @media (max-width: 1024px) {
   .stat-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .two-column-grid,
+  .two-column-form,
   .overview-grid,
   .auth-card {
     grid-template-columns: 1fr;
